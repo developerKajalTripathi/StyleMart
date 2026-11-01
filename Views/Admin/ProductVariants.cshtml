@@ -1,0 +1,465 @@
+@model ProductVariantPageViewModel
+@{
+    ViewData["Title"] = "Product Color & Size Variations";
+}
+
+<style>
+    .variants-page {
+        min-height: 100vh;
+        padding: 30px;
+        background: linear-gradient(135deg, #fff7fa, #ffffff 55%, #fff0f6);
+    }
+
+    .variants-heading { color: #30232b; font-weight: 750; margin-bottom: 6px; }
+    .variants-subtitle { color: #887782; }
+
+    .variant-card {
+        background: #fff;
+        border: 1px solid #f2dce7;
+        border-radius: 18px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(130, 45, 85, .07);
+        margin-bottom: 22px;
+    }
+
+    .variant-card h5 { color: #35232d; font-weight: 700; margin-bottom: 20px; }
+
+    .variants-page .form-label { font-weight: 600; color: #493641; }
+
+    .variants-page .form-control,
+    .variants-page .form-select {
+        border: 1px solid #eadce4;
+        border-radius: 10px;
+        padding: 11px 13px;
+    }
+
+    .variants-page .form-control:focus,
+    .variants-page .form-select:focus {
+        border-color: #e83e8c;
+        box-shadow: 0 0 0 3px rgba(232, 62, 140, .12);
+    }
+
+    .btn-variant-pink {
+        background: #e83e8c;
+        border: 1px solid #e83e8c;
+        color: #fff;
+        border-radius: 9px;
+        padding: 10px 20px;
+        font-weight: 600;
+    }
+    .btn-variant-pink:hover { background: #c92c74; border-color: #c92c74; color: #fff; }
+
+    .variant-table thead th {
+        background: #fff0f6;
+        color: #493641;
+        border-bottom: 1px solid #f2dce7;
+        white-space: nowrap;
+    }
+    .variant-table td, .variant-table th { padding: 13px 15px; vertical-align: middle; }
+
+    .color-dot {
+        display: inline-block;
+        width: 11px; height: 11px;
+        border-radius: 50%;
+        border: 1px solid #ddd;
+        margin-right: 6px;
+    }
+
+    /* ── Color Picker Master ── */
+    .color-master-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 6px;
+    }
+
+    .color-master-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 3px solid transparent;
+        padding: 2px;
+        background: transparent;
+        cursor: pointer;
+        transition: border-color .15s, transform .15s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    .color-master-btn:hover { transform: scale(1.12); border-color: #888; }
+    .color-master-btn.active { border-color: #e83e8c; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #e83e8c; }
+
+    .color-master-circle {
+        display: block;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+
+    .color-master-circle.light-border { border: 1.5px solid #ccc; }
+
+    .selected-color-label {
+        font-size: 13px;
+        color: #e83e8c;
+        font-weight: 600;
+        margin-top: 8px;
+        min-height: 20px;
+        display: block;
+    }
+
+    /* Bulk add rows */
+    .bulk-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 120px auto;
+        gap: 10px;
+        align-items: end;
+        margin-bottom: 10px;
+        padding: 12px;
+        background: #fff8fb;
+        border-radius: 10px;
+        border: 1px solid #f2dce7;
+    }
+
+    .bulk-row .form-control, .bulk-row .form-select { font-size: 13px; padding: 8px 10px; }
+    .btn-remove-row { background: none; border: 1px solid #f2dce7; border-radius: 8px; padding: 8px 12px; color: #e83e8c; cursor: pointer; font-size: 16px; }
+    .btn-remove-row:hover { background: #fff0f8; }
+
+    .btn-add-row {
+        background: white;
+        border: 1.5px dashed #e83e8c;
+        color: #e83e8c;
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-bottom: 16px;
+        transition: background .2s;
+    }
+    .btn-add-row:hover { background: #fff0f8; }
+
+    .sku-pill {
+        background: #f0f4ff;
+        border: 1px solid #ccd7f5;
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-family: monospace;
+        color: #3355aa;
+    }
+
+    @@media (max-width: 768px) {
+        .variants-page { padding: 15px; }
+        .variant-card { padding: 18px; }
+        .bulk-row { grid-template-columns: 1fr 1fr; }
+    }
+</style>
+
+<div class="admin-shell">
+    @await Html.PartialAsync("_AdminSidebar", "ProductVariants")
+    <section class="admin-main">
+        <div class="variants-page">
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+                <div>
+                    <h2 class="variants-heading">Color &amp; Size Variations</h2>
+                    <p class="variants-subtitle mb-0">Manage product variants, stock and SKU codes.</p>
+                </div>
+                <a asp-controller="Admin" asp-action="Products" class="btn btn-outline-secondary rounded-3 px-3">← Back to Products</a>
+            </div>
+
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    @TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger">@TempData["Error"]</div>
+            }
+
+            <!-- ===== SINGLE ADD / EDIT FORM ===== -->
+            <div class="variant-card">
+                <h5>@(Model.Form.Id == 0 ? "Add New Variation" : "Edit Variation")</h5>
+
+                <form asp-controller="Admin" asp-action="SaveProductVariant" method="post">
+                    @Html.AntiForgeryToken()
+                    <input asp-for="Form.Id" type="hidden" />
+                    <!-- Hidden field that holds the selected color value -->
+                    <input type="hidden" name="Form.Color" id="singleColorHidden" value="@Model.Form.Color" />
+
+                    <div class="row g-3">
+                        <div class="col-lg-4 col-md-6">
+                            <label asp-for="Form.ProductId" class="form-label">Product *</label>
+                            <select asp-for="Form.ProductId" class="form-select" required>
+                                <option value="">Select Product</option>
+                                @foreach (var product in Model.Products)
+                                {
+                                    <option value="@product.Id">@product.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Color Master Picker -->
+                        <div class="col-lg-4 col-md-6">
+                            <label class="form-label">Color *</label>
+                            <div class="color-master-grid" id="singleColorGrid">
+                                @{
+                                    var colorPalette = new[] {
+                                        ("Black","#111111",false), ("White","#f5f5f5",true), ("Red","#dc3545",false),
+                                        ("Blue","#0d6efd",false), ("Pink","#e83e8c",false), ("Green","#198754",false),
+                                        ("Yellow","#ffc107",false), ("Navy","#001f5b",false), ("Grey","#adb5bd",false),
+                                        ("Orange","#fd7e14",false), ("Purple","#6f42c1",false), ("Brown","#795548",false),
+                                        ("Maroon","#800000",false), ("Teal","#20c997",false), ("Beige","#f5f0dc",true),
+                                        ("Cream","#fffdd0",true), ("Khaki","#c3b091",true)
+                                    };
+                                }
+                                @foreach (var (cName, cHex, isLight) in colorPalette)
+                                {
+                                    <button type="button"
+                                            class="color-master-btn @(Model.Form.Color == cName ? "active" : "")"
+                                            data-color="@cName"
+                                            title="@cName"
+                                            onclick="selectSingleColor('@cName')">
+                                        <span class="color-master-circle @(isLight ? "light-border" : "")"
+                                              style="background:@cHex;"></span>
+                                    </button>
+                                }
+                            </div>
+                            <span class="selected-color-label" id="singleColorLabel">
+                                @(string.IsNullOrEmpty(Model.Form.Color) ? "Click a color above to select" : "Selected: " + Model.Form.Color)
+                            </span>
+                        </div>
+
+                        <!-- Size Dropdown -->
+                        <div class="col-lg-2 col-md-6">
+                            <label asp-for="Form.Size" class="form-label">Size *</label>
+                            <select asp-for="Form.Size" class="form-select" required>
+                                <option value="">Select Size</option>
+                                <optgroup label="Clothing">
+                                    <option value="XS">XS</option>
+                                    <option value="S">S</option>
+                                    <option value="M">M</option>
+                                    <option value="L">L</option>
+                                    <option value="XL">XL</option>
+                                    <option value="XXL">XXL</option>
+                                    <option value="3XL">3XL</option>
+                                    <option value="Free Size">Free Size</option>
+                                </optgroup>
+                                <optgroup label="Numeric (Jeans / Waist)">
+                                    <option value="28">28</option>
+                                    <option value="30">30</option>
+                                    <option value="32">32</option>
+                                    <option value="34">34</option>
+                                    <option value="36">36</option>
+                                    <option value="38">38</option>
+                                </optgroup>
+                                <optgroup label="Footwear">
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10</option>
+                                    <option value="11">11</option>
+                                    <option value="12">12</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="col-lg-2 col-md-6">
+                            <label asp-for="Form.Stock" class="form-label">Stock Qty *</label>
+                            <input asp-for="Form.Stock" type="number" min="0" class="form-control" placeholder="0" required />
+                        </div>
+
+                        <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+                            <a asp-controller="Admin" asp-action="ProductVariants" class="btn btn-outline-secondary rounded-3 px-4">Clear</a>
+                            <button type="submit" class="btn btn-variant-pink">
+                                @(Model.Form.Id == 0 ? "＋ Save Variation" : "✓ Update Variation")
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ===== BULK ADD FORM ===== -->
+            <div class="variant-card">
+                <h5>⚡ Bulk Add Variations</h5>
+                <p class="text-muted" style="font-size:13px;">Add multiple color/size combinations at once for a single product.</p>
+
+                <form asp-controller="Admin" asp-action="BulkAddVariants" method="post" id="bulkForm">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Select Product *</label>
+                        <select name="productId" class="form-select" required style="max-width:350px;">
+                            <option value="">Select Product</option>
+                            @foreach (var p in Model.Products)
+                            {
+                                <option value="@p.Id">@p.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Column headers -->
+                    <div class="bulk-row" style="background:transparent;border-color:transparent;padding:0 12px;font-size:12px;font-weight:600;color:#493641;">
+                        <span>Color *</span><span>Size *</span><span>Stock</span><span></span>
+                    </div>
+
+                    <div id="bulkRows">
+                        <!-- Row 1 -->
+                        <div class="bulk-row">
+                            <select name="colors" class="form-select" required>
+                                <option value="">Select Color</option>
+                                <option>Black</option><option>White</option><option>Red</option>
+                                <option>Blue</option><option>Pink</option><option>Green</option>
+                                <option>Yellow</option><option>Navy</option><option>Grey</option>
+                                <option>Orange</option><option>Purple</option><option>Brown</option>
+                                <option>Maroon</option><option>Teal</option><option>Beige</option>
+                                <option>Cream</option><option>Khaki</option>
+                            </select>
+                            <select name="sizes" class="form-select" required>
+                                <option value="">Select Size</option>
+                                <optgroup label="Clothing"><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option>3XL</option><option>Free Size</option></optgroup>
+                                <optgroup label="Numeric"><option>28</option><option>30</option><option>32</option><option>34</option><option>36</option><option>38</option></optgroup>
+                                <optgroup label="Footwear"><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></optgroup>
+                            </select>
+                            <input type="number" name="stocks" class="form-control" placeholder="0" min="0" value="0" />
+                            <span></span>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-add-row" onclick="addBulkRow()">＋ Add Row</button>
+
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-variant-pink">Save All Variations</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ===== SAVED VARIANTS TABLE ===== -->
+            <div class="variant-card">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <h5 class="mb-0">Saved Variations</h5>
+                    <span class="badge rounded-pill text-bg-light">@Model.Variants.Count variation(s)</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table variant-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Color</th>
+                                <th>Size</th>
+                                <th>Stock</th>
+                                <th>SKU</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Variants.Count == 0)
+                            {
+                                <tr><td colspan="6" class="text-center text-muted py-4">No variations added yet.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var variant in Model.Variants)
+                                {
+                                    <tr>
+                                        <td class="fw-semibold">@variant.Product?.Name</td>
+                                        <td>
+                                            <span class="color-dot" style="background:@(variant.Color?.ToLowerInvariant() switch {
+                                                "black" => "#111", "white" => "#f5f5f5", "red" => "#dc3545",
+                                                "blue" => "#0d6efd", "pink" => "#e83e8c", "green" => "#198754",
+                                                "yellow" => "#ffc107", "navy" => "#001f5b", "grey" => "#adb5bd",
+                                                "gray" => "#adb5bd", "orange" => "#fd7e14", "purple" => "#6f42c1",
+                                                "brown" => "#795548", "maroon" => "#800000", "teal" => "#20c997",
+                                                "beige" => "#f5f0dc", "cream" => "#fffdd0", "khaki" => "#c3b091",
+                                                _ => "#adb5bd" });border:@(variant.Color?.ToLowerInvariant() is "white" or "cream" or "beige" ? "1px solid #ccc" : "none");"></span>
+                                            @variant.Color
+                                        </td>
+                                        <td><span class="badge rounded-pill text-bg-light border">@variant.Size</span></td>
+                                        <td>
+                                            <span class="fw-semibold @(variant.Stock <= 0 ? "text-danger" : variant.Stock <= 5 ? "text-warning" : "")">
+                                                @variant.Stock
+                                            </span>
+                                            @if (variant.Stock <= 0) { <small class="text-danger"> Out</small> }
+                                            else if (variant.Stock <= 5) { <small class="text-warning"> Low</small> }
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(variant.Sku))
+                                            {
+                                                <span class="sku-pill">@variant.Sku</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted" style="font-size:12px;">—</span>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <a asp-controller="Admin" asp-action="ProductVariants" asp-route-editId="@variant.Id"
+                                               class="btn btn-sm btn-outline-primary rounded-3">Edit</a>
+                                            <form asp-controller="Admin" asp-action="DeleteProductVariant" method="post" class="d-inline"
+                                                  onsubmit="return confirm('Delete this variation?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@variant.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-3">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </section>
+</div>
+
+<script>
+// Single variant color picker
+function selectSingleColor(name) {
+    document.querySelectorAll('#singleColorGrid .color-master-btn').forEach(function(b) {
+        b.classList.remove('active');
+    });
+    var btn = document.querySelector('#singleColorGrid [data-color="' + name + '"]');
+    if (btn) btn.classList.add('active');
+    document.getElementById('singleColorHidden').value = name;
+    var lbl = document.getElementById('singleColorLabel');
+    if (lbl) lbl.textContent = 'Selected: ' + name;
+}
+
+// Bulk add rows
+function addBulkRow() {
+    var container = document.getElementById('bulkRows');
+    var row = document.createElement('div');
+    row.className = 'bulk-row';
+    row.innerHTML = `
+        <select name="colors" class="form-select">
+            <option value="">Select Color</option>
+            <option>Black</option><option>White</option><option>Red</option>
+            <option>Blue</option><option>Pink</option><option>Green</option>
+            <option>Yellow</option><option>Navy</option><option>Grey</option>
+            <option>Orange</option><option>Purple</option><option>Brown</option>
+            <option>Maroon</option><option>Teal</option><option>Beige</option>
+            <option>Cream</option><option>Khaki</option>
+        </select>
+        <select name="sizes" class="form-select">
+            <option value="">Select Size</option>
+            <optgroup label="Clothing"><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option>3XL</option><option>Free Size</option></optgroup>
+            <optgroup label="Numeric"><option>28</option><option>30</option><option>32</option><option>34</option><option>36</option><option>38</option></optgroup>
+            <optgroup label="Footwear"><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></optgroup>
+        </select>
+        <input type="number" name="stocks" class="form-control" placeholder="0" min="0" value="0" />
+        <button type="button" class="btn-remove-row" onclick="this.closest('.bulk-row').remove()">✕</button>
+    `;
+    container.appendChild(row);
+    row.querySelector('select').focus();
+}
+</script>

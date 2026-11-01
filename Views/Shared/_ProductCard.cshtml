@@ -1,0 +1,54 @@
+@model Product
+@inject StyleMart.Services.WishlistService WishSvc
+@{
+    var liked = (await WishSvc.GetIdsAsync()).Contains(Model.Id);
+    var showActions = ViewData["ShowActions"] as bool? == true;
+    var needsChoice = Model.Variants.Any();
+}
+<div class="product-card">
+    <div class="product-media">
+        <a asp-controller="Products" asp-action="Details" asp-route-id="@Model.Id">
+            <img src="@Model.ImageUrl" class="product-img" alt="@Model.Name" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/600x750/f5f0ed/222?text=StyleMart'">
+        </a>
+        <button type="button" class="wish-btn @(liked ? "active" : "")" data-wish="@Model.Id" aria-pressed="@(liked ? "true" : "false")" title="Add to wishlist" aria-label="Add to wishlist">
+            <i class="@(liked ? "fa-solid" : "fa-regular") fa-heart"></i>
+        </button>
+        @if (Model.DiscountPercentage > 0)
+        {
+            <span class="off-badge">@Model.DiscountPercentage.ToString("0.##")% OFF</span>
+        }
+    </div>
+    <div class="product-info">
+        <small class="text-muted">@Model.Category?.Name</small>
+        <h6><a asp-controller="Products" asp-action="Details" asp-route-id="@Model.Id">@Model.Name</a></h6>
+        <div class="d-flex justify-content-between align-items-center">
+            <div><partial name="_PriceTag" model="Model" /></div>
+            @if (!showActions)
+            {
+                <a class="quick-add" asp-controller="Products" asp-action="Details" asp-route-id="@Model.Id" title="Choose colour and size">
+                    <i class="fa fa-plus"></i>
+                </a>
+            }
+        </div>
+        @if (showActions)
+        {
+            if (needsChoice)
+            {
+                <a class="btn btn-dark btn-sm w-100 mt-3" asp-controller="Products" asp-action="Details" asp-route-id="@Model.Id">
+                    <i class="fa fa-ruler me-1"></i>Select size &amp; add to cart
+                </a>
+            }
+            else if (Model.Stock > 0)
+            {
+                <form asp-controller="Cart" asp-action="Add" method="post" class="mt-3">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-dark btn-sm w-100"><i class="fa fa-cart-plus me-1"></i>Add to cart</button>
+                </form>
+            }
+            else
+            {
+                <button type="button" class="btn btn-outline-secondary btn-sm w-100 mt-3" disabled>Out of stock</button>
+            }
+        }
+    </div>
+</div>

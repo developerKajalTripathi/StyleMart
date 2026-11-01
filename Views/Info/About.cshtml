@@ -1,0 +1,12 @@
+@{ ViewData["Title"] = "About us"; }
+<div class="container py-5 info-page">
+    <span class="eyebrow text-pink">OUR STORY</span>
+    <h1 class="info-title">About StyleMart</h1>
+    <p class="lead text-muted">StyleMart is an everyday fashion store built around one idea: good style should be easy to find and easy to buy.</p>
+    <div class="row g-4 mt-2">
+        <div class="col-md-4"><div class="info-card"><i class="fa-solid fa-shirt"></i><h5>Fresh &amp; timeless</h5><p>From new-season picks to wardrobe essentials, we stock pieces that move with you.</p></div></div>
+        <div class="col-md-4"><div class="info-card"><i class="fa-solid fa-cart-shopping"></i><h5>Simple shopping</h5><p>Pick a colour and size, add to cart, choose your address and place the order. That's it.</p></div></div>
+        <div class="col-md-4"><div class="info-card"><i class="fa-solid fa-money-bill-wave"></i><h5>Pay on delivery</h5><p>Cash on Delivery is available, so you pay only when your order reaches you.</p></div></div>
+    </div>
+    <a asp-controller="Products" asp-action="Index" class="btn btn-pink btn-lg mt-4">Shop the collection</a>
+</div>

@@ -1,0 +1,7 @@
+@model Product
+<strong>₹@Model.DiscountedPrice.ToString("N0")</strong>
+@if (Model.DiscountPercentage > 0)
+{
+    <span class="price-mrp">₹@Model.Price.ToString("N0")</span>
+    <span class="price-off">@Model.DiscountPercentage.ToString("0.##")% off</span>
+}

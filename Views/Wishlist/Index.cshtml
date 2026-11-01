@@ -1,0 +1,230 @@
+@model List<Product>
+@using StyleMart.Models
+@inject StyleMart.Services.WishlistService WishSvc
+@{
+    ViewData["Title"] = "My Wishlist";
+    var wishMsg = TempData["WishMsg"] as string;
+    var wishMsgType = TempData["WishMsgType"] as string ?? "success";
+}
+
+<div class="wl-page">
+    <div class="container py-5">
+
+        @* ── Page header ── *@
+        <div class="wl-header">
+            <div>
+                <span class="eyebrow text-pink">YOUR FAVOURITES</span>
+                <h1 class="wl-title">My Wishlist</h1>
+            </div>
+            <div class="wl-count-pill">
+                <i class="fa-solid fa-heart me-2"></i>
+                <span id="wlCount">@Model.Count</span> item@(Model.Count == 1 ? "" : "s")
+            </div>
+        </div>
+
+        @* ── Flash message ── *@
+        @if (!string.IsNullOrEmpty(wishMsg))
+        {
+            <div class="alert alert-@(wishMsgType == "success" ? "success" : "warning") alert-dismissible fade show wl-alert" role="alert">
+                <i class="fa @(wishMsgType == "success" ? "fa-circle-check" : "fa-triangle-exclamation") me-2"></i>
+                @wishMsg
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        @* ── Empty state ── *@
+        @if (!Model.Any())
+        {
+            <div class="wl-empty">
+                <div class="wl-empty-hearts">
+                    <i class="fa-regular fa-heart wl-heart-lg"></i>
+                    <i class="fa-solid fa-heart wl-heart-sm wl-h1"></i>
+                    <i class="fa-solid fa-heart wl-heart-sm wl-h2"></i>
+                </div>
+                <h2 class="wl-empty-title">Your wishlist is empty</h2>
+                <p class="wl-empty-sub">Save items you love by tapping the <i class="fa-regular fa-heart text-pink"></i> on any product. They'll all appear here.</p>
+                <a asp-controller="Products" asp-action="Index" class="btn btn-pink btn-lg wl-shop-btn">
+                    <i class="fa fa-bag-shopping me-2"></i>Start Shopping
+                </a>
+            </div>
+        }
+        else
+        {
+            <div class="row g-4 align-items-start">
+
+                @* ── Wishlist items list ── *@
+                <div class="col-lg-8" id="wlList">
+                    @foreach (var p in Model)
+                    {
+                        var liked = (await WishSvc.GetIdsAsync()).Contains(p.Id);
+                        var hasVariants = p.Variants.Any();
+                        var inStock = hasVariants ? p.Variants.Any(v => v.Stock > 0) : p.Stock > 0;
+
+                        <div class="wl-item" id="wl-item-@p.Id" data-product-id="@p.Id">
+                            @* Product image *@
+                            <a asp-controller="Products" asp-action="Details" asp-route-id="@p.Id" class="wl-img-link">
+                                <img src="@p.ImageUrl"
+                                     class="wl-item-img"
+                                     alt="@p.Name"
+                                     onerror="this.onerror=null;this.src='https://placehold.co/200x250/f5f0ed/222?text=StyleMart'" />
+                            </a>
+
+                            @* Product info *@
+                            <div class="wl-item-body">
+                                <div class="wl-item-top">
+                                    <div>
+                                        <small class="wl-cat">@p.Category?.Name</small>
+                                        <h5 class="wl-item-name">
+                                            <a asp-controller="Products" asp-action="Details" asp-route-id="@p.Id">@p.Name</a>
+                                        </h5>
+                                        @if (!inStock)
+                                        {
+                                            <span class="wl-oos-badge"><i class="fa fa-ban me-1"></i>Out of Stock</span>
+                                        }
+                                        else if (p.Variants.Any())
+                                        {
+                                            <span class="wl-variant-note"><i class="fa fa-palette me-1"></i>@p.Variants.Where(v => v.Stock > 0).Select(v => v.Color).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().Count() color(s) available</span>
+                                        }
+                                    </div>
+
+                                    @* Remove (heart toggle) button *@
+                                    <button type="button"
+                                            class="wl-remove-btn @(liked ? "active" : "")"
+                                            data-wish="@p.Id"
+                                            aria-pressed="@(liked ? "true" : "false")"
+                                            title="Remove from wishlist"
+                                            aria-label="Remove from wishlist">
+                                        <i class="@(liked ? "fa-solid" : "fa-regular") fa-heart"></i>
+                                    </button>
+                                </div>
+
+                                @* Price *@
+                                <div class="wl-price-row">
+                                    <span class="wl-price">₹@p.DiscountedPrice.ToString("N0")</span>
+                                    @if (p.DiscountPercentage > 0)
+                                    {
+                                        <span class="wl-mrp">₹@p.Price.ToString("N0")</span>
+                                        <span class="wl-off-badge">@p.DiscountPercentage.ToString("0.##")% OFF</span>
+                                    }
+                                </div>
+
+                                @* Actions *@
+                                <div class="wl-actions">
+                                    @if (!inStock)
+                                    {
+                                        <button class="btn wl-btn-oos" disabled>
+                                            <i class="fa fa-ban me-2"></i>Out of Stock
+                                        </button>
+                                    }
+                                    else if (hasVariants)
+                                    {
+                                        <a asp-controller="Products" asp-action="Details" asp-route-id="@p.Id" class="btn wl-btn-cart">
+                                            <i class="fa fa-ruler me-2"></i>Select Size &amp; Add to Cart
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <form asp-controller="Wishlist" asp-action="MoveToCart" method="post" class="d-inline">
+                                            <input type="hidden" name="id" value="@p.Id" />
+                                            <button type="submit" class="btn wl-btn-cart">
+                                                <i class="fa fa-cart-arrow-down me-2"></i>Move to Cart
+                                            </button>
+                                        </form>
+                                        <form asp-controller="Cart" asp-action="Add" method="post" class="d-inline">
+                                            <input type="hidden" name="id" value="@p.Id" />
+                                            <button type="submit" class="btn wl-btn-add">
+                                                <i class="fa fa-cart-plus me-2"></i>Add to Cart
+                                            </button>
+                                        </form>
+                                    }
+                                    <a asp-controller="Products" asp-action="Details" asp-route-id="@p.Id" class="btn wl-btn-view">
+                                        <i class="fa fa-eye me-1"></i>View
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @* ── Summary sidebar ── *@
+                <div class="col-lg-4">
+                    <div class="wl-summary">
+                        <h6 class="wl-summary-title"><i class="fa-solid fa-clipboard-list me-2"></i>Wishlist Summary</h6>
+                        <ul class="wl-summary-list">
+                            <li>
+                                <span>Total items</span>
+                                <strong id="summaryCount">@Model.Count</strong>
+                            </li>
+                            <li>
+                                <span>Total value</span>
+                                <strong>₹@Model.Sum(p => p.DiscountedPrice).ToString("N0")</strong>
+                            </li>
+                            @{
+                                var totalSavings = Model.Sum(p => p.Price - p.DiscountedPrice);
+                            }
+                            @if (totalSavings > 0)
+                            {
+                                <li class="wl-summary-savings">
+                                    <span>You save</span>
+                                    <strong class="text-success">₹@totalSavings.ToString("N0")</strong>
+                                </li>
+                            }
+                        </ul>
+
+                        <div class="wl-summary-divider"></div>
+
+                        <a asp-controller="Products" asp-action="Index" class="btn btn-outline-dark w-100 mb-2">
+                            <i class="fa fa-bag-shopping me-2"></i>Continue Shopping
+                        </a>
+                        <a asp-controller="Cart" asp-action="Index" class="btn btn-pink w-100">
+                            <i class="fa fa-cart-shopping me-2"></i>Go to Cart
+                        </a>
+
+                        <div class="wl-summary-tips mt-4">
+                            <div class="wl-tip"><i class="fa fa-lock text-pink me-2"></i>Secure & private</div>
+                            <div class="wl-tip"><i class="fa fa-rotate-left text-pink me-2"></i>Easy returns</div>
+                            <div class="wl-tip"><i class="fa fa-money-bill-wave text-pink me-2"></i>Cash on delivery</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    // When a heart button is toggled (via the global listener in _Layout),
+    // the global script already handles paint() and setCount().
+    // We additionally need to animate & remove the row when unliked on this page.
+    var originalHandler = window._wlPageHandler;
+
+    // Listen for DOM mutations that indicate an item was removed from the wish list
+    // We hook into the global wish toggle: after it fires, check if item is gone.
+    document.addEventListener('wishlist:toggled', function (e) {
+        var id = e.detail && e.detail.id;
+        var added = e.detail && e.detail.added;
+        if (!added && document.body.dataset.page === 'wishlist-index') {
+            var item = document.getElementById('wl-item-' + id);
+            if (item) {
+                item.classList.add('wl-item-removing');
+                setTimeout(function () {
+                    item.remove();
+                    // Update count pill
+                    var rows = document.querySelectorAll('.wl-item');
+                    var cnt = rows.length;
+                    var pill = document.getElementById('wlCount');
+                    if (pill) pill.textContent = cnt;
+                    var sc = document.getElementById('summaryCount');
+                    if (sc) sc.textContent = cnt;
+                    // If none left, reload to show empty state
+                    if (cnt === 0) location.reload();
+                }, 300);
+            }
+        }
+    });
+})();
+</script>
+}

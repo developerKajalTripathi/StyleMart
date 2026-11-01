@@ -1,0 +1,1590 @@
+@model Product
+@using System.Text.Json
+@inject StyleMart.Services.WishlistService WishSvc
+
+@{
+    ViewData["Title"] = Model.Name;
+
+    var variants = Model.Variants.ToList();
+    var hasVariants = variants.Any();
+
+    var colors = variants
+        .Where(v => v.Stock > 0 && !string.IsNullOrWhiteSpace(v.Color))
+        .Select(v => v.Color.Trim())
+        .Distinct()
+        .ToList();
+
+    var variantData = variants.Select(v => new
+    {
+        id = v.Id,
+        color = v.Color,
+        size = v.Size,
+        stock = v.Stock
+    });
+
+    var canBuy = hasVariants ? colors.Any() : Model.Stock > 0;
+    var liked = (await WishSvc.GetIdsAsync()).Contains(Model.Id);
+
+    var reviews = ViewBag.Reviews as List<StyleMart.Models.ProductReview> ?? new();
+    var alreadyReviewed = (bool)(ViewBag.AlreadyReviewed ?? false);
+    double avgRating = reviews.Any() ? reviews.Average(r => r.Rating) : 0;
+
+    // Product gallery
+    var galleryImages = new List<string>();
+
+    if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+        galleryImages.Add(Model.ImageUrl);
+
+    foreach (var image in Model.Images.OrderBy(i => i.SortOrder))
+    {
+        if (!string.IsNullOrWhiteSpace(image.ImageUrl) &&
+            !galleryImages.Contains(image.ImageUrl))
+        {
+            galleryImages.Add(image.ImageUrl);
+        }
+    }
+
+    var similarProducts =
+        ViewBag.SimilarProducts as List<Product> ?? new List<Product>();
+}
+
+<style>
+    .detail-img {
+        width: 100%;
+        height: 520px;
+        max-height: 600px;
+        object-fit: contain;
+        border-radius: 10px;
+        background: #f8f8f8;
+        cursor: zoom-in;
+        display: block;
+    }
+
+    .product-gallery-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+    }
+
+        .product-gallery-layout.has-thumbnails {
+            grid-template-columns: 76px minmax(0, 1fr);
+        }
+
+            .product-gallery-layout.has-thumbnails .product-gallery-main {
+                grid-column: 2;
+                grid-row: 1;
+            }
+
+    .product-gallery-main {
+        position: relative;
+        background: #f8f8f8;
+        border-radius: 10px;
+        overflow: visible;
+    }
+
+    .gallery-thumbnails {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 0;
+        grid-column: 1;
+        grid-row: 1;
+        max-height: 520px;
+        overflow-y: auto;
+        padding-right: 3px;
+    }
+
+    .gallery-thumb {
+        width: 68px;
+        height: 78px;
+        flex-shrink: 0;
+        padding: 3px;
+        border: 1px solid #ddd;
+        border-radius: 7px;
+        background: #fff;
+        cursor: pointer;
+        transition: border-color .2s;
+    }
+
+        .gallery-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .gallery-thumb:hover,
+        .gallery-thumb.active {
+            border: 2px solid #e91e8c;
+        }
+
+    /* Side hover zoom */
+    .zoom-lens {
+        display: none;
+        position: absolute;
+        width: 115px;
+        height: 115px;
+        border: 1px solid rgba(120, 75, 45, .55);
+        background: rgba(255, 255, 255, .25);
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    .side-zoom-preview {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: calc(100% + 14px);
+        width: min(440px, 42vw);
+        height: 388px;
+        border: 1px solid #ead7c8;
+        border-radius: 8px;
+        background-color: #fff;
+        background-repeat: no-repeat;
+        z-index: 30;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, .08);
+        pointer-events: none;
+    }
+
+    .product-gallery-main.zoom-active .zoom-lens,
+    .product-gallery-main.zoom-active .side-zoom-preview {
+        display: block;
+    }
+
+    .image-zoom-btn {
+        position: absolute;
+        right: 14px;
+        bottom: 14px;
+        width: 42px;
+        height: 42px;
+        border: 0;
+        border-radius: 50%;
+        background: #fff;
+        color: #222;
+        font-size: 24px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+        cursor: zoom-in;
+        z-index: 10;
+    }
+
+        .image-zoom-btn:hover {
+            background: #e91e8c;
+            color: #fff;
+        }
+
+    .image-zoom-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        padding: 30px;
+        background: rgba(0, 0, 0, .88);
+        align-items: center;
+        justify-content: center;
+    }
+
+        .image-zoom-overlay.open {
+            display: flex;
+        }
+
+        .image-zoom-overlay img {
+            max-width: 92vw;
+            max-height: 88vh;
+            object-fit: contain;
+        }
+
+    .image-zoom-close {
+        position: absolute;
+        top: 18px;
+        right: 26px;
+        border: 0;
+        background: transparent;
+        color: #fff;
+        font-size: 38px;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    /* Description and Highlights */
+    .product-info-tabs {
+        margin-top: 35px;
+        padding: 20px;
+        // border: 1px solid #f0ddce;
+        border: 1px solid #e91e8c;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .product-tab-buttons {
+        display: flex;
+        gap: 10px;
+        border-bottom: 1px solid #eadfd7;
+        margin-bottom: 14px;
+    }
+
+    .product-tab-btn {
+        border: 0;
+        border-bottom: 2px solid transparent;
+        padding: 12px 18px;
+        background: white;
+        //background: black;
+        // color: #786b62;
+        color: #e91e8c;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        cursor: pointer;
+    }
+
+        .product-tab-btn.active {
+            background: #fff;
+            // color: #7b3517;
+            color: #e91e8c;
+            border-bottom-color: #e91e8c;
+        }
+
+    .product-tab-panel {
+        border: 1px solid #e7dfda;
+        padding: 18px;
+        color: #555;
+        font-size: 14px;
+        line-height: 1.8;
+        min-height: 80px;
+        overflow-wrap: anywhere;
+    }
+
+        .product-tab-panel[hidden] {
+            display: none !important;
+        }
+
+    .product-highlight-list {
+        margin: 0;
+        padding-left: 20px;
+    }
+
+        .product-highlight-list li {
+            margin-bottom: 8px;
+        }
+
+    .size-btn {
+        min-width: 55px;
+        padding: 10px 18px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: white;
+        color: #222;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .size-btn:hover {
+            border-color: #2874f0;
+        }
+
+        .size-btn.active {
+            border: 2px solid #2874f0;
+            color: #2874f0;
+            background: #f0f5ff;
+        }
+
+        .size-btn:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
+    /* ── Color Swatch Buttons (Flipkart style) ── */
+    .color-swatch-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 3px solid transparent;
+        padding: 2px;
+        background: transparent;
+        cursor: pointer;
+        transition: border-color .15s, transform .15s;
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .color-swatch-btn:hover {
+        transform: scale(1.12);
+        border-color: #555;
+    }
+
+    .color-swatch-btn.active {
+        border-color: #2874f0;
+        box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2874f0;
+    }
+
+    .color-circle {
+        display: block;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgba(0,0,0,.18);
+    }
+
+    .price-large {
+        font-size: 28px;
+        font-weight: 700;
+    }
+
+    .variant-label {
+        font-weight: 600;
+        margin-bottom: 10px;
+        display: block;
+    }
+
+    /* Similar products */
+    .similar-product-card {
+        height: 100%;
+        border: 1px solid #eee;
+        border-radius: 12px;
+        overflow: hidden;
+        transition: transform .2s, box-shadow .2s;
+    }
+
+        .similar-product-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 22px rgba(0, 0, 0, .1);
+        }
+
+    .similar-product-image {
+        width: 100%;
+        height: 230px;
+        object-fit: contain;
+        background: #f8f8f8;
+    }
+
+    /* Reviews */
+    .reviews-section {
+        margin-top: 60px;
+        padding-top: 40px;
+        border-top: 1px solid #eee;
+    }
+
+    .review-avg-wrap {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+
+    .review-big-num {
+        font-size: 52px;
+        font-weight: 800;
+        line-height: 1;
+        color: #222;
+    }
+
+    .rstar {
+        font-size: 20px;
+        color: #f5a623;
+    }
+
+        .rstar.empty {
+            color: #ddd;
+        }
+
+    .review-card {
+        background: #fff;
+        border: 1px solid #eee;
+        border-radius: 14px;
+        padding: 20px 24px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, .05);
+    }
+
+    .rc-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .reviewer-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #e91e8c, #ff6b6b);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 700;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    .reviewer-name {
+        font-weight: 700;
+        font-size: 15px;
+    }
+
+    .reviewer-date {
+        font-size: 12px;
+        color: #999;
+    }
+
+    .sml-stars {
+        display: flex;
+        gap: 3px;
+    }
+
+    .ss {
+        font-size: 13px;
+        color: #f5a623;
+    }
+
+        .ss.e {
+            color: #ddd;
+        }
+
+    .review-comment {
+        color: #444;
+        font-size: 15px;
+        margin-top: 6px;
+    }
+
+    .review-form-box {
+        background: #fafafa;
+        border: 1px solid #eee;
+        border-radius: 14px;
+        padding: 28px;
+        margin-top: 28px;
+    }
+
+    .star-picker {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: flex-end;
+        gap: 6px;
+        margin-bottom: 16px;
+    }
+
+        .star-picker input[type=radio] {
+            display: none;
+        }
+
+        .star-picker label {
+            font-size: 30px;
+            color: #ddd;
+            cursor: pointer;
+            transition: color .15s;
+            line-height: 1;
+        }
+
+            .star-picker input:checked ~ label,
+            .star-picker label:hover,
+            .star-picker label:hover ~ label {
+                color: #f5a623;
+            }
+
+    .no-reviews-msg {
+        color: #aaa;
+        font-size: 15px;
+        padding: 20px 0;
+    }
+
+    .mini-star-row {
+        display: inline-flex;
+        gap: 2px;
+    }
+
+        .mini-star-row .ms-ico {
+            font-size: 13px;
+            color: #f5a623;
+        }
+
+            .mini-star-row .ms-ico.e {
+                color: #ddd;
+            }
+
+    @@media (max-width: 991.98px) {
+        .side-zoom-preview,
+        .zoom-lens {
+            display: none !important;
+        }
+    }
+
+    @@media (max-width: 575.98px) {
+        .product-gallery-layout.has-thumbnails {
+            grid-template-columns: 52px minmax(0, 1fr);
+            gap: 8px;
+        }
+
+        .gallery-thumb {
+            width: 48px;
+            height: 60px;
+        }
+
+        .detail-img {
+            height: 380px;
+        }
+
+
+        .product-info-tabs {
+            margin-top: 30px;
+            padding: 0;
+            background: transparent;
+            border: none;
+        }
+        /* Tabs - StyleMart theme */
+        .product-tab-buttons {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid #e7dfda;
+            margin-bottom: 0;
+        }
+
+        .product-tab-btn {
+            border: 0;
+            border-bottom: 2px solid transparent;
+            border-radius: 0;
+            padding: 12px 18px;
+            background: #f1efed;
+            color: #000;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: .04em;
+            cursor: pointer;
+            transition: all .2s ease;
+        }
+
+            .product-tab-btn:hover {
+                background: #e8e3df;
+                color: #7b3517;
+            }
+
+            .product-tab-btn.active {
+                background: #fff;
+                color: #7b3517;
+                border-bottom: 2px solid #9a4b25;
+            }
+        /* Description / Highlights content */
+        .product-tab-panel {
+            border: 1px solid #e7dfda;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            padding: 20px;
+            background: #fff;
+            color: #555;
+            font-size: 14px;
+            line-height: 1.8;
+            min-height: 80px;
+            overflow-wrap: anywhere;
+        }
+
+            .product-tab-panel[hidden] {
+                display: none !important;
+            }
+
+        .product-highlight-list {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+            .product-highlight-list li {
+                margin-bottom: 8px;
+            }
+
+                .product-highlight-list li:last-child {
+                    margin-bottom: 0;
+                }
+
+            .product-highlight-list strong {
+                color: #7b3517;
+            }
+
+        .review-card {
+            padding: 16px;
+        }
+
+        .review-form-box {
+            padding: 18px;
+        }
+    }
+</style>
+
+<div class="container py-5">
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    <div class="row g-5 align-items-start">
+
+        <!-- LEFT: Product images -->
+        <div class="col-md-6">
+            <div class="product-gallery-layout @(galleryImages.Count > 1 ? "has-thumbnails" : "")">
+
+                <div class="product-gallery-main">
+
+                    <img id="mainProductImage"
+                         src="@(galleryImages.FirstOrDefault() ?? "https://placehold.co/700x850/f5f0ed/222?text=StyleMart")"
+                         class="detail-img"
+                         alt="@Model.Name"
+                         onerror="this.onerror=null;this.src='https://placehold.co/700x850/f5f0ed/222?text=StyleMart';">
+
+                    <span class="zoom-lens" id="zoomLens" aria-hidden="true"></span>
+
+                    <div class="side-zoom-preview"
+                         id="sideZoomPreview"
+                         aria-hidden="true"></div>
+
+                    <button type="button"
+                            class="image-zoom-btn"
+                            id="openImageZoom"
+                            aria-label="Zoom product image"
+                            title="Zoom image">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+
+                @if (galleryImages.Count > 1)
+                {
+                    <div class="gallery-thumbnails" aria-label="Product images">
+
+                        @for (int imageIndex = 0; imageIndex < galleryImages.Count; imageIndex++)
+                        {
+                            <button type="button"
+                                    class="gallery-thumb @(imageIndex == 0 ? "active" : "")"
+                                    data-image-url="@galleryImages[imageIndex]"
+                                    aria-label="Show product image @(imageIndex + 1)">
+
+                                <img src="@galleryImages[imageIndex]"
+                                     alt="@Model.Name image @(imageIndex + 1)"
+                                     onerror="this.onerror=null;this.src='https://placehold.co/100x100?text=Image';">
+                            </button>
+                        }
+
+                    </div>
+                }
+
+            </div>
+        </div>
+
+        <!-- RIGHT: Product information -->
+        <div class="col-md-6">
+
+            <span class="text-uppercase text-muted">
+                @Model.Category?.Name COLLECTION
+            </span>
+
+            <h1 class="fw-bold mt-2">@Model.Name</h1>
+
+            @if (reviews.Any())
+            {
+                <div class="d-flex align-items-center gap-2 mb-2">
+
+                    <span class="mini-star-row">
+                        @for (int s = 1; s <= 5; s++)
+                        {
+                            <i class="fa-solid fa-star ms-ico @(s <= Math.Round(avgRating) ? "" : "e")"></i>
+                        }
+                    </span>
+
+                    <span style="font-size:13px;color:#666;">
+                        @avgRating.ToString("0.#") / 5
+                        (@reviews.Count review@(reviews.Count == 1 ? "" : "s"))
+                    </span>
+
+                </div>
+            }
+
+            <div class="price-large my-3">
+
+                ₹@Model.DiscountedPrice.ToString("N0")
+
+                @if (Model.DiscountPercentage > 0)
+                {
+                    <span class="price-mrp fs-6">
+                        ₹@Model.Price.ToString("N0")
+                    </span>
+
+                    <span class="price-off fs-6">
+                        @Model.DiscountPercentage.ToString("0.##")% off
+                    </span>
+                }
+
+            </div>
+
+            <p>
+                <i class="fa fa-truck me-2"></i>Easy delivery
+                <span class="mx-2">|</span>
+                <i class="fa fa-rotate-left me-1"></i>Easy returns
+                <span class="mx-2">|</span>
+                <i class="fa fa-money-bill me-1"></i>Cash on Delivery
+            </p>
+
+            @if (hasVariants && colors.Any())
+            {
+                <div class="mb-4">
+                    <label class="variant-label">
+                        Select Color: <span id="selectedColorName" class="fw-normal text-muted"></span>
+                    </label>
+                    <div id="colorSwatches" class="d-flex flex-wrap gap-2 mt-2">
+                        @foreach (var color in colors)
+                        {
+                            <button type="button"
+                                    class="color-swatch-btn"
+                                    data-color="@color"
+                                    title="@color"
+                                    aria-label="Select color @color">
+                                <span class="color-circle" style="background:@(color.ToLowerInvariant() switch {
+                                    "black" => "#111111",
+                                    "white" => "#f5f5f5",
+                                    "red" => "#dc3545",
+                                    "blue" => "#0d6efd",
+                                    "pink" => "#e83e8c",
+                                    "green" => "#198754",
+                                    "yellow" => "#ffc107",
+                                    "navy" => "#001f5b",
+                                    "grey" or "gray" => "#adb5bd",
+                                    "orange" => "#fd7e14",
+                                    "purple" => "#6f42c1",
+                                    "brown" => "#795548",
+                                    "maroon" => "#800000",
+                                    "teal" => "#20c997",
+                                    "beige" => "#f5f0dc",
+                                    "cream" => "#fffdd0",
+                                    "khaki" => "#c3b091",
+                                    _ => "#cccccc"
+                                });border:@(color.ToLowerInvariant() is "white" or "cream" or "beige" ? "2px solid #ccc" : "none");"></span>
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <span class="variant-label">Select Size</span>
+                    <div id="sizeButtons" class="d-flex flex-wrap gap-2">
+                        <span class="text-muted">
+                            Please select a color first.
+                        </span>
+                    </div>
+                    <a href="#" id="sizeGuideLink" class="small text-muted mt-1 d-none" style="text-decoration:underline;">Size Guide</a>
+                </div>
+
+                <div id="variantStock" class="mb-2"></div>
+            }
+            else if (hasVariants)
+            {
+                <p class="text-danger fw-bold">Out of stock</p>
+            }
+            else if (Model.Stock <= 0)
+            {
+                <p class="text-danger fw-bold">Out of stock</p>
+            }
+            else
+            {
+                <p class="text-success fw-semibold"><i class="fa fa-circle-check me-1"></i> In Stock (@Model.Stock items available)</p>
+            }
+
+            <div id="pickMsg"
+                 class="alert alert-warning py-2 px-3 d-none"
+                 role="alert">
+                <i class="fa fa-circle-info me-1"></i>
+                <span></span>
+            </div>
+
+            <!-- Existing Add to Cart / Buy Now functionality -->
+            <form asp-controller="Cart"
+                  asp-action="Add"
+                  method="post"
+                  id="addForm">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden" name="id" value="@Model.Id" />
+
+                <input type="hidden"
+                       name="variantId"
+                       id="variantId"
+                       value="" />
+
+                <div class="d-flex gap-2 mt-3">
+                   
+                    <button type="submit"
+                            id="btnAddToCart"
+                            class="btn btn-dark btn-lg flex-fill"
+                            disabled="@(!canBuy)">
+                        <i class="fa fa-cart-plus me-2"></i>
+                        Add to Cart
+                    </button>
+
+                    <button type="submit"
+                            id="btnBuyNow"
+                            name="buyNow"
+                            value="true"
+                            class="btn btn-pink btn-lg flex-fill"
+                            disabled="@(!canBuy)">
+                        <i class="fa fa-bolt me-2"></i>
+                        Buy Now
+                    </button>
+
+                </div>
+            </form>
+
+            <!-- Existing Wishlist functionality -->
+            <button type="button"
+                    class="btn btn-outline-dark w-100 mt-2 wish-detail @(liked ? "active" : "")"
+                    data-wish="@Model.Id"
+                    aria-pressed="@(liked ? "true" : "false")">
+
+                <i class="@(liked ? "fa-solid" : "fa-regular") fa-heart me-2"></i>
+
+                <span class="wish-text">
+                    @(liked ? "Wishlisted" : "Add to Wishlist")
+                </span>
+            </button>
+
+            <a asp-action="Index"
+               class="btn btn-outline-dark w-100 mt-2">
+                Continue Shopping
+            </a>
+
+        </div>
+    </div>
+
+    <!-- DESCRIPTION AND HIGHLIGHTS BEFORE REVIEWS -->
+    <section class="product-info-tabs" aria-label="Product information">
+
+        <div class="product-tab-buttons"
+             role="tablist"
+             aria-label="Product information tabs">
+
+            <button type="button"
+                    class="product-tab-btn active"
+                    id="descriptionTabButton"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="descriptionTabPanel">
+                DESCRIPTION
+            </button>
+
+            <button type="button"
+                    class="product-tab-btn"
+                    id="highlightsTabButton"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="highlightsTabPanel">
+                HIGHLIGHTS
+            </button>
+
+        </div>
+
+        <div class="product-tab-panel"
+             id="descriptionTabPanel"
+             role="tabpanel"
+             aria-labelledby="descriptionTabButton">
+
+            @if (!string.IsNullOrWhiteSpace(Model.Description))
+            {
+                @Model.Description
+            }
+            else
+            {
+                <span class="text-muted">
+                    Is product ka description abhi add nahi kiya gaya hai.
+                </span>
+            }
+
+        </div>
+
+        <div class="product-tab-panel"
+             id="highlightsTabPanel"
+             role="tabpanel"
+             aria-labelledby="highlightsTabButton"
+             hidden>
+
+            <ul class="product-highlight-list">
+
+                <li>
+                    <strong>Product:</strong> @Model.Name
+                </li>
+
+                @if (Model.Category != null)
+                {
+                    <li>
+                        <strong>Category:</strong> @Model.Category.Name
+                    </li>
+                }
+
+                <li>
+                    <strong>Price:</strong>
+                    ₹@Model.DiscountedPrice.ToString("N0")
+                </li>
+
+                @if (Model.DiscountPercentage > 0)
+                {
+                    <li>
+                        <strong>Discount:</strong>
+                        @Model.DiscountPercentage.ToString("0.##")% off
+                    </li>
+                }
+
+                <li>
+                    <strong>Availability:</strong>
+                    @(Model.TotalStock > 0 ? "In stock" : "Out of stock")
+                </li>
+
+            </ul>
+
+        </div>
+
+    </section>
+
+    <!-- CUSTOMER REVIEWS -->
+    <div class="reviews-section">
+
+        <div class="row">
+
+            <div class="col-lg-8">
+
+                <h3 class="fw-bold mb-4">
+                    <i class="fa-solid fa-star me-2"
+                       style="color:#f5a623;"></i>
+                    Customer Reviews
+                </h3>
+
+                @if (reviews.Any())
+                {
+                    <div class="review-avg-wrap">
+
+                        <span class="review-big-num">
+                            @avgRating.ToString("0.#")
+                        </span>
+
+                        <div>
+
+                            <div class="d-flex gap-1 mb-1">
+
+                                @for (int s = 1; s <= 5; s++)
+                                {
+                                    <i class="fa-solid fa-star rstar @(s <= Math.Round(avgRating) ? "" : "empty")"></i>
+                                }
+
+                            </div>
+
+                            <div class="text-muted" style="font-size:13px;">
+                                @reviews.Count review@(reviews.Count == 1 ? "" : "s")
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    @foreach (var rv in reviews)
+                    {
+                        <div class="review-card">
+
+                            <div class="rc-head">
+
+                                <div class="reviewer-avatar">
+                                    @(string.IsNullOrWhiteSpace(rv.ReviewerName)
+                                                                ? "U"
+                                                                : rv.ReviewerName.Substring(0, 1).ToUpper())
+                        </div>
+
+                                <div class="flex-grow-1">
+
+                                    <div class="reviewer-name">
+                                        @rv.ReviewerName
+                                    </div>
+
+                                    <div class="reviewer-date">
+                                        @rv.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")
+                                    </div>
+
+                                </div>
+
+                                <div class="sml-stars">
+
+                            @for (int s = 1; s <= 5; s++)
+                                    {
+                                        <i class="fa-solid fa-star ss @(s <= rv.Rating ? "" : "e")"></i>
+                                    }
+
+                                </div>
+
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(rv.Comment))
+                            {
+                                <p class="review-comment mb-0">
+                                    @rv.Comment
+                                </p>
+                            }
+
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="no-reviews-msg">
+                        <i class="fa-regular fa-comment me-2"></i>
+                        Abhi koi review nahi hai. Pehle review dein!
+                    </p>
+                }
+
+                @if (TempData["ReviewSuccess"] != null)
+                {
+                    <div class="alert alert-success mt-3">
+                        @TempData["ReviewSuccess"]
+                    </div>
+                }
+
+                @if (TempData["ReviewError"] != null)
+                {
+                    <div class="alert alert-danger mt-3">
+                        @TempData["ReviewError"]
+                    </div>
+                }
+
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    @if (!alreadyReviewed)
+                    {
+                        <div class="review-form-box mt-4">
+
+                            <h5 class="fw-bold mb-3">
+                                <i class="fa fa-pen me-2"></i>
+                                Apna Review Likhein
+                            </h5>
+
+                            <form asp-controller="Products"
+                                  asp-action="SubmitReview"
+                                  method="post">
+
+                                @Html.AntiForgeryToken()
+
+                                <input type="hidden"
+                                       name="productId"
+                                       value="@Model.Id" />
+
+                                <div class="mb-3">
+
+                                    <label class="form-label fw-semibold">
+                                        Aapka Naam
+                                    </label>
+
+                                    <input type="text"
+                                           name="reviewerName"
+                                           class="form-control"
+                                           placeholder="Apna naam likhein"
+                                           maxlength="80"
+                                           required />
+
+                                </div>
+
+                                <div class="mb-3">
+
+                                    <label class="form-label fw-semibold">
+                                        Rating
+                                    </label>
+
+                                    <div class="star-picker" id="starPicker">
+
+                                        @for (int i = 5; i >= 1; i--)
+                                        {
+                                            <input type="radio"
+                                                   name="rating"
+                                                   id="star@(i)r"
+                                                   value="@i"
+                                                   @(i == 5 ? "checked" : "") />
+
+                                            <label for="star@(i)r"
+                                                   title="@i star@(i == 1 ? "" : "s")">
+                                                &#9733;
+                                            </label>
+                                        }
+
+                                    </div>
+
+                                </div>
+
+                                <div class="mb-3">
+
+                                    <label class="form-label fw-semibold">
+                                        Comment
+                                        <span class="text-muted fw-normal">
+                                            (optional)
+                                        </span>
+                                    </label>
+
+                                    <textarea name="comment"
+                                      class="form-control"
+                                      rows="3"
+                                      placeholder="Aapka experience kaisa raha?"
+                                      maxlength="1000"></textarea>
+
+                                </div>
+
+                                <button type="submit" class="btn btn-pink">
+                                    <i class="fa fa-paper-plane me-2"></i>
+                                    Review Submit
+                                </button>
+
+                            </form>
+
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mt-4">
+                            <i class="fa fa-check-circle me-2"></i>
+                            Aapne is product par review de diya hai. Shukriya!
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="alert alert-light border mt-4">
+
+                        <i class="fa fa-user me-2"></i>
+                        Review dene ke liye
+
+                        <a asp-controller="Account"
+                           asp-action="Login"
+                           class="fw-bold">
+                            login karein
+                        </a>.
+
+                    </div>
+                }
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- SIMILAR PRODUCTS -->
+    @if (similarProducts.Any())
+    {
+        <section class="mt-5 pt-4">
+
+            <h3 class="fw-bold mb-4">Similar Products</h3>
+
+            <div class="row g-4">
+
+                @foreach (var item in similarProducts)
+                {
+                    <div class="col-6 col-md-4 col-lg-3">
+
+                        <a asp-controller="Products"
+                           asp-action="Details"
+                           asp-route-id="@item.Id"
+                           class="text-decoration-none text-dark">
+
+                            <div class="similar-product-card">
+
+                                <img src="@(string.IsNullOrWhiteSpace(item.ImageUrl)
+                                                                         ? "https://placehold.co/400x400?text=StyleMart"
+                                                                         : item.ImageUrl)"
+                             alt="@item.Name"
+                             class="similar-product-image"
+                             onerror="this.onerror=null;this.src='https://placehold.co/400x400?text=StyleMart';">
+
+                                <div class="p-3">
+
+                                    <h6 class="mb-2">
+                                        @item.Name
+                                    </h6>
+
+                                    <div class="fw-bold">
+                                        ₹@item.DiscountedPrice.ToString("N0")
+                                    </div>
+
+                            @if (item.DiscountPercentage > 0)
+                                    {
+                                        <div class="small mt-1">
+
+                                            <span class="text-muted text-decoration-line-through">
+                                                ₹@item.Price.ToString("N0")
+                                            </span>
+
+                                            <span class="text-success ms-2">
+                                                @item.DiscountPercentage.ToString("0.##")% off
+                                            </span>
+
+                                        </div>
+                                    }
+
+                                </div>
+
+                            </div>
+
+                        </a>
+
+                    </div>
+                }
+
+            </div>
+
+        </section>
+    }
+
+</div>
+
+<!-- FULLSCREEN IMAGE ZOOM -->
+<div class="image-zoom-overlay"
+     id="imageZoomOverlay"
+     role="dialog"
+     aria-modal="true"
+     aria-label="Zoomed product image">
+
+    <button type="button"
+            class="image-zoom-close"
+            id="closeImageZoom"
+            aria-label="Close zoom">
+        &times;
+    </button>
+
+    <img id="zoomedProductImage"
+         src=""
+         alt="@Model.Name">
+
+</div>
+
+@section Scripts {
+
+    <script>
+        // IMAGE GALLERY, SIDE ZOOM AND FULLSCREEN ZOOM
+        (function () {
+
+            var mainImage = document.getElementById("mainProductImage");
+            var thumbButtons = document.querySelectorAll(".gallery-thumb");
+
+            var zoomOverlay = document.getElementById("imageZoomOverlay");
+            var zoomedImage = document.getElementById("zoomedProductImage");
+
+            var openZoomButton = document.getElementById("openImageZoom");
+            var closeZoomButton = document.getElementById("closeImageZoom");
+
+            var galleryMain = document.querySelector(".product-gallery-main");
+            var zoomLens = document.getElementById("zoomLens");
+            var sideZoomPreview = document.getElementById("sideZoomPreview");
+
+            function updateSideZoom(event) {
+
+                if (!mainImage ||
+                    !galleryMain ||
+                    !zoomLens ||
+                    !sideZoomPreview ||
+                    window.innerWidth < 992) {
+                    return;
+                }
+
+                var rect = mainImage.getBoundingClientRect();
+
+                var x = event.clientX - rect.left;
+                var y = event.clientY - rect.top;
+
+                var lensW = zoomLens.offsetWidth;
+                var lensH = zoomLens.offsetHeight;
+
+                var left = Math.max(
+                    0,
+                    Math.min(x - lensW / 2, rect.width - lensW)
+                );
+
+                var top = Math.max(
+                    0,
+                    Math.min(y - lensH / 2, rect.height - lensH)
+                );
+
+                zoomLens.style.left = left + "px";
+                zoomLens.style.top = top + "px";
+
+                sideZoomPreview.style.backgroundImage =
+                    "url('" + mainImage.src.replace(/'/g, "%27") + "')";
+
+                sideZoomPreview.style.backgroundSize =
+                    (rect.width * 2.5) + "px " + (rect.height * 2.5) + "px";
+
+                sideZoomPreview.style.backgroundPosition =
+                    "-" + (left * 2.5) + "px -" + (top * 2.5) + "px";
+
+                galleryMain.classList.add("zoom-active");
+            }
+
+            if (mainImage && galleryMain) {
+
+                mainImage.addEventListener("mousemove", updateSideZoom);
+
+                mainImage.addEventListener("mouseenter", function () {
+
+                    if (window.innerWidth >= 992) {
+                        galleryMain.classList.add("zoom-active");
+                    }
+
+                });
+
+                mainImage.addEventListener("mouseleave", function () {
+                    galleryMain.classList.remove("zoom-active");
+                });
+
+            }
+
+            // Thumbnail click changes the main image.
+            thumbButtons.forEach(function (button) {
+
+                button.addEventListener("click", function () {
+
+                    if (!mainImage) return;
+
+                    mainImage.src = button.getAttribute("data-image-url");
+
+                    thumbButtons.forEach(function (thumb) {
+                        thumb.classList.remove("active");
+                    });
+
+                    button.classList.add("active");
+
+                    if (sideZoomPreview) {
+                        sideZoomPreview.style.backgroundImage =
+                            "url('" + mainImage.src.replace(/'/g, "%27") + "')";
+                    }
+
+                });
+
+            });
+
+            // Open fullscreen zoom.
+            function openZoom() {
+
+                if (!mainImage || !zoomOverlay || !zoomedImage) return;
+
+                zoomedImage.src = mainImage.src;
+
+                zoomOverlay.classList.add("open");
+                document.body.style.overflow = "hidden";
+
+            }
+
+            // Close fullscreen zoom.
+            function closeZoom() {
+
+                if (!zoomOverlay) return;
+
+                zoomOverlay.classList.remove("open");
+                document.body.style.overflow = "";
+
+            }
+
+            if (mainImage) {
+                mainImage.addEventListener("click", openZoom);
+            }
+
+            if (openZoomButton) {
+                openZoomButton.addEventListener("click", openZoom);
+            }
+
+            if (closeZoomButton) {
+                closeZoomButton.addEventListener("click", closeZoom);
+            }
+
+            if (zoomOverlay) {
+
+                zoomOverlay.addEventListener("click", function (event) {
+
+                    if (event.target === zoomOverlay) {
+                        closeZoom();
+                    }
+
+                });
+
+            }
+
+            document.addEventListener("keydown", function (event) {
+
+                if (event.key === "Escape") {
+                    closeZoom();
+                }
+
+            });
+
+        })();
+
+
+        // DESCRIPTION AND HIGHLIGHTS TABS
+        (function () {
+
+            var descriptionButton =
+                document.getElementById("descriptionTabButton");
+
+            var highlightsButton =
+                document.getElementById("highlightsTabButton");
+
+            var descriptionPanel =
+                document.getElementById("descriptionTabPanel");
+
+            var highlightsPanel =
+                document.getElementById("highlightsTabPanel");
+
+            function showProductTab(showDescription) {
+
+                if (!descriptionButton ||
+                    !highlightsButton ||
+                    !descriptionPanel ||
+                    !highlightsPanel) {
+                    return;
+                }
+
+                descriptionButton.classList.toggle(
+                    "active",
+                    showDescription
+                );
+
+                highlightsButton.classList.toggle(
+                    "active",
+                    !showDescription
+                );
+
+                descriptionButton.setAttribute(
+                    "aria-selected",
+                    showDescription ? "true" : "false"
+                );
+
+                highlightsButton.setAttribute(
+                    "aria-selected",
+                    showDescription ? "false" : "true"
+                );
+
+                descriptionPanel.hidden = !showDescription;
+                highlightsPanel.hidden = showDescription;
+
+            }
+
+            if (descriptionButton) {
+                descriptionButton.addEventListener("click", function () {
+                    showProductTab(true);
+                });
+            }
+
+            if (highlightsButton) {
+                highlightsButton.addEventListener("click", function () {
+                    showProductTab(false);
+                });
+            }
+
+        })();
+
+
+        // EXISTING COLOR, SIZE AND STOCK SELECTION (Color Swatches)
+        (function () {
+
+            var variants =
+                @Html.Raw(JsonSerializer.Serialize(variantData));
+
+            var hasVariants = variants.length > 0;
+
+            var colorSwatches = document.querySelectorAll('.color-swatch-btn');
+            var selectedColorNameEl = document.getElementById('selectedColorName');
+            var sizeBox = document.getElementById('sizeButtons');
+            var stockEl = document.getElementById('variantStock');
+            var variantInput = document.getElementById('variantId');
+            var form = document.getElementById('addForm');
+            var pickMsg = document.getElementById('pickMsg');
+            var selectedColor = null;
+
+            function warn(text) {
+                if (!pickMsg) return;
+                var msg = pickMsg.querySelector('span');
+                if (msg) msg.textContent = text;
+                pickMsg.classList.remove('d-none');
+            }
+
+            function clearWarn() {
+                if (pickMsg) pickMsg.classList.add('d-none');
+            }
+
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    if (!hasVariants || (variantInput && variantInput.value)) return;
+                    e.preventDefault();
+                    warn(!selectedColor ? 'Please select a color first.' : 'Please select a size.');
+                });
+            }
+
+            function resetSizes(msg) {
+                if (sizeBox) sizeBox.innerHTML = msg ? '<span class="text-muted">' + msg + '</span>' : '';
+                if (stockEl) stockEl.innerHTML = '';
+                if (variantInput) variantInput.value = '';
+            }
+
+            function showSizes(color) {
+                var available = variants.filter(function (v) {
+                    return (v.color || '').trim().toLowerCase() === color.trim().toLowerCase() && v.stock > 0;
+                });
+
+                // Also get out-of-stock sizes to show greyed out
+                var allForColor = variants.filter(function (v) {
+                    return (v.color || '').trim().toLowerCase() === color.trim().toLowerCase();
+                });
+
+                resetSizes('');
+
+                if (!allForColor.length) {
+                    sizeBox.innerHTML = '<span class="text-muted">No sizes found for this color.</span>';
+                    return;
+                }
+
+                allForColor.forEach(function (v) {
+                    var inStock = v.stock > 0;
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'size-btn' + (inStock ? '' : ' size-btn-oos');
+                    btn.textContent = (v.size || '').trim();
+                    btn.disabled = !inStock;
+                    btn.title = inStock ? v.stock + ' in stock' : 'Out of stock';
+
+                    if (inStock) {
+                        btn.addEventListener('click', function () {
+                            sizeBox.querySelectorAll('.size-btn').forEach(function (b) { b.classList.remove('active'); });
+                            btn.classList.add('active');
+                            if (variantInput) variantInput.value = v.id;
+
+                            // Stock message
+                            if (stockEl) {
+                                if (v.stock <= 3) {
+                                    stockEl.innerHTML = '<span class="text-danger fw-semibold"><i class="fa fa-fire me-1"></i>Hurry! Only ' + v.stock + ' left in stock!</span>';
+                                } else if (v.stock <= 10) {
+                                    stockEl.innerHTML = '<span class="text-warning fw-semibold"><i class="fa fa-triangle-exclamation me-1"></i>Only ' + v.stock + ' items left</span>';
+                                } else {
+                                    stockEl.innerHTML = '<span class="text-success fw-semibold"><i class="fa fa-circle-check me-1"></i>In Stock</span>';
+                                }
+                            }
+                            clearWarn();
+                        });
+                    }
+                    sizeBox.appendChild(btn);
+                });
+            }
+
+            colorSwatches.forEach(function (swatch) {
+                swatch.addEventListener('click', function () {
+                    colorSwatches.forEach(function (s) { s.classList.remove('active'); });
+                    swatch.classList.add('active');
+                    selectedColor = swatch.getAttribute('data-color');
+                    if (selectedColorNameEl) selectedColorNameEl.textContent = selectedColor;
+                    resetSizes('');
+                    showSizes(selectedColor);
+                    clearWarn();
+                });
+            });
+
+            // Auto-select if only one color
+            if (colorSwatches.length === 1) {
+                colorSwatches[0].click();
+            }
+
+        })();
+
+    </script>
+}

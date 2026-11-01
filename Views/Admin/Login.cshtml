@@ -1,0 +1,37 @@
+@{
+	ViewData["Title"] = "Admin login";
+}
+<div class="admin-login-wrap">
+	<div class="admin-login-card">
+		<div class="admin-icon"><i class="fa fa-lock"></i></div><span class="eyebrow text-pink">
+			STYLEMART CONTROL ROOM
+		</span><h2>Admin login</h2><p class="text-muted">
+			Sign in to manage your store.
+		</p>
+		@if (ViewBag.Error != null)
+		{
+			<div class="alert alert-danger">
+				@ViewBag.Error
+			</div>
+		}
+		<form asp-action="Login" method="post">
+			<div class="mb-3">
+				<label class="form-label">Username</label>
+				<input name="username" class="form-control" required autocomplete="username" placeholder="admin or email">
+			</div>
+			<div class="mb-3">
+				<label class="form-label">Password</label>
+				<input name="password" type="password" class="form-control" required autocomplete="current-password" placeholder="Enter password">
+			</div>
+			<button class="btn btn-pink w-100 btn-lg">
+				Sign in
+				<i class="fa fa-arrow-right ms-2"></i>
+			</button>
+		</form>
+		<div class="demo-credentials mt-4">
+			<small>First-time login (change in appsettings.json)</small>
+			<div>Username: <b>admin</b></div><div>Password: <b>Admin@123</b></div>
+		</div>
+		<a asp-controller="Home" asp-action="Index" class="d-block text-center mt-3 small">← Back to store</a>
+	</div>
+</div>

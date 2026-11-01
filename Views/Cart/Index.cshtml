@@ -1,0 +1,156 @@
+@model CartViewModel
+@{
+	ViewData["Title"] = "Your cart";
+	var isAuth = User.Identity?.IsAuthenticated == true;
+}
+<div class="container py-5">
+	<span class="eyebrow text-pink">YOUR PICKS</span>
+	<h2 class="mb-4">Shopping cart</h2>
+	@* @if (TempData["Message"] != null)
+	{
+		<div class="alert alert-success">@TempData["Message"]</div>
+	}
+	@if (TempData["Error"] != null)
+	{
+		<div class="alert alert-danger">@TempData["Error"]</div>
+	} *@
+
+
+
+
+	@if (TempData["CartSuccess"] != null || TempData["Message"] != null)
+	{
+		<div class="alert alert-success alert-dismissible fade show mt-3"
+			 role="alert">
+			<i class="fa-solid fa-circle-check me-2"></i>
+			@(TempData["CartSuccess"] ?? TempData["Message"])
+
+			<button type="button"
+					class="btn-close"
+					data-bs-dismiss="alert"
+					aria-label="Close"></button>
+		</div>
+	}
+
+
+
+
+
+	@if (!Model.Lines.Any())
+	{
+		<div class="empty-state">
+			<i class="fa fa-bag-shopping"></i><h4>Your cart is waiting for something lovely.</h4>
+			<a asp-controller="Products" asp-action="Index" class="btn btn-pink mt-3">Start shopping</a>
+		</div>
+	}
+	else
+	{
+		<div class="row g-4">
+			<div class="col-lg-8">
+				<div class="table-responsive">
+					<table class="table align-middle cart-table">
+						<thead>
+							<tr>
+								<th>Product</th>
+								<th>Price</th>
+								<th>Qty</th>
+								<th>Subtotal</th>
+								<th></th>
+							</tr>
+						</thead>
+						<tbody>
+							@foreach (var item in Model.Lines)
+							{
+								<tr>
+									<td>
+										<div class="d-flex align-items-center gap-3">
+											<img class="cart-thumb" src="@item.ImageUrl" alt="" onerror="this.onerror=null;this.src='https://placehold.co/130x150/f5f0ed/222?text=SM'">
+											<div>
+												<a asp-controller="Products" asp-action="Details" asp-route-id="@item.ProductId"><strong>@item.Name</strong></a>
+												@if (item.VariantInfo != null)
+												{
+													<div class="small text-muted">@item.VariantInfo</div>
+												}
+												@if (!item.InStock)
+												{
+													<div class="small text-danger">@(item.Available <= 0 ? "Out of stock" : "Only " + item.Available + " left")</div>
+												}
+											</div>
+										</div>
+									</td>
+									<td>
+										₹@item.UnitPrice.ToString("N0")
+										@if (item.DiscountPercentage > 0)
+										{
+											<div><span class="price-mrp ms-0">₹@item.Mrp.ToString("N0")</span> <span class="price-off">@item.DiscountPercentage.ToString("0.##")% off</span></div>
+										}
+									</td>
+									<td>
+										<div class="qty-box">
+											<form asp-action="Update" method="post">
+												<input type="hidden" name="id" value="@item.ProductId">
+												<input type="hidden" name="variantId" value="@item.ProductVariantId">
+												<input type="hidden" name="quantity" value="@(item.Quantity - 1)">
+												<button class="btn btn-sm btn-outline-dark" disabled="@(item.Quantity <= 1)">−</button>
+											</form>
+											<span>@item.Quantity</span>
+											<form asp-action="Update" method="post">
+												<input type="hidden" name="id" value="@item.ProductId">
+												<input type="hidden" name="variantId" value="@item.ProductVariantId">
+												<input type="hidden" name="quantity" value="@(item.Quantity + 1)">
+												<button class="btn btn-sm btn-outline-dark" disabled="@(item.Quantity >= Math.Min(10, item.Available))">+</button>
+											</form>
+										</div>
+									</td>
+									<td>₹@item.LineTotal.ToString("N0")</td>
+									<td>
+										<form asp-action="Remove" method="post">
+											<input type="hidden" name="id" value="@item.ProductId">
+											<input type="hidden" name="variantId" value="@item.ProductVariantId">
+											<button class="btn btn-sm btn-outline-danger"><i class="fa fa-trash"></i></button>
+										</form>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+			<div class="col-lg-4">
+				<div class="summary-card">
+					<h5>Price details</h5>
+					<div class="d-flex justify-content-between my-3">
+						<span>Price (@Model.ItemCount items)</span>
+						<span>₹@Model.Mrp.ToString("N0")</span>
+					</div>
+					@if (Model.Savings > 0)
+					{
+						<div class="d-flex justify-content-between mb-3">
+							<span>Discount</span>
+							<span class="text-success">− ₹@Model.Savings.ToString("N0")</span>
+						</div>
+					}
+					<div class="d-flex justify-content-between mb-3">
+						<span>Delivery</span>
+						<span class="text-success">Free</span>
+					</div><hr>
+					<div class="d-flex justify-content-between fs-5">
+						<strong>Total</strong><strong>₹@Model.Total.ToString("N0")</strong>
+					</div>
+					@if (Model.Savings > 0)
+					{
+						<p class="text-success small mt-2 mb-0">You will save ₹@Model.Savings.ToString("N0") on this order</p>
+					}
+					@if (Model.HasStockIssues)
+					{
+						<div class="alert alert-warning small mt-3 mb-0">Please remove or reduce unavailable items to continue.</div>
+					}
+					else
+					{
+						<a asp-action="Checkout" class="btn btn-pink w-100 mt-4">@(isAuth ? "Place order" : "Login & place order")</a>
+					}
+				</div>
+			</div>
+		</div>
+	}
+</div>

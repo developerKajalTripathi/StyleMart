@@ -1,0 +1,73 @@
+@model IEnumerable<Product>
+@{
+	ViewData["Title"] = "Manage products";
+}
+
+
+<div class="admin-shell">
+	@await Html.PartialAsync("_AdminSidebar", "Products")<section class="admin-main">
+		<div class="admin-top">
+			<div>
+				<span class="eyebrow text-pink">CATALOGUE</span>
+				<h2>Manage products</h2>
+			</div>
+			<a asp-action="CreateProduct" class="btn btn-pink">
+				<i class="fa fa-plus me-2"></i>Add product
+			</a>
+		</div>
+		@if (TempData["Message"] != null)
+		{
+			<div class="alert alert-success">
+				@TempData["Message"]
+			</div>
+		}
+		<div class="admin-panel table-responsive">
+			<table class="table align-middle">
+				<thead>
+					<tr>
+						<th>Product</th>
+						<th>Category</th>
+						<th>Price</th>
+						<th>Stock</th>
+						<th>Status</th>
+						<th>Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (var p in Model)
+					{
+						<tr>
+							<td>
+								<div class="d-flex align-items-center gap-2">
+									<img src="@p.ImageUrl" class="admin-thumb" alt="">
+									<b>@p.Name</b>
+								</div>
+							</td>
+							<td>@p.Category?.Name</td>
+							<td>₹@p.DiscountedPrice.ToString("N0") @if (p.DiscountPercentage > 0) {<small class="text-muted"> (@p.DiscountPercentage.ToString("0.##")% off)</small>}</td>
+							<td>@p.TotalStock</td>
+							<td>@(p.IsActive ? "Active" : "Hidden")</td>
+							<td>
+								<a asp-action="EditProduct" asp-route-id="@p.Id" class="btn btn-sm btn-outline-dark">Edit</a>
+								@if (p.IsActive)
+								{
+									<form asp-action="DeleteProduct" method="post" class="d-inline">
+										<input type="hidden" name="id" value="@p.Id">
+										<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Hide this product?')">Hide</button>
+									</form>
+								}
+								else
+								{
+									<form asp-action="ShowProduct" method="post" class="d-inline">
+										<input type="hidden" name="id" value="@p.Id">
+										<button class="btn btn-sm btn-outline-success">Show</button>
+									</form>
+								}
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	</section>
+</div>

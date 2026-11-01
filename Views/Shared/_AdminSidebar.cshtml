@@ -1,0 +1,17 @@
+@model string
+<aside class="admin-sidebar">
+    <a class="admin-brand" asp-controller="Admin" asp-action="Index">StyleMart <small>ADMIN</small></a>
+    <a class="@(Model == "Index" ? "active" : "")" asp-controller="Admin" asp-action="Index">
+        <i class="fa fa-chart-line"></i> Dashboard</a>
+    <a class="@(Model == "Products" ? "active" : "")" asp-controller="Admin" asp-action="Products">
+        <i class="fa fa-shirt"></i> Products</a>
+    <a class="@(Model == "Categories" ? "active" : "")" asp-controller="Admin" asp-action="Categories">
+        <i class="fa fa-tags"></i> Categories</a>
+    <a asp-controller="Admin" asp-action="ProductVariants"><i class="fa fa-palette"></i> Variants</a>
+    <a class="@(Model == "Orders" ? "active" : "")" asp-controller="Admin" asp-action="Orders">
+        <i class="fa fa-box"></i> Orders</a>
+    <a class="@(Model == "Reviews" ? "active" : "")" asp-controller="Admin" asp-action="Reviews">
+        <i class="fa fa-star"></i> Reviews</a>
+    <a asp-controller="Admin" asp-action="Logout">
+        <i class="fa fa-right-from-bracket"></i> Logout</a>
+</aside>

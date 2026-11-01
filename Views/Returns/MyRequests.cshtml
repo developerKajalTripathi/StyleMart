@@ -1,0 +1,59 @@
+﻿@model IEnumerable<StyleMart.Models.OrderReturn>
+
+@{
+    ViewData["Title"] = "My Return Requests";
+}
+
+<div class="container py-5">
+    <h2 class="mb-4">My Return / Exchange Requests</h2>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (!Model.Any())
+    {
+        <p>You have no return or exchange requests yet.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Request Type</th>
+                        <th>Reason</th>
+                        <th>Request Date</th>
+                        <th>Status</th>
+                        <th>Refund Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.OrderId</td>
+                            <td>@item.RequestType</td>
+                            <td>
+                                @item.Reason
+                                @if (!string.IsNullOrWhiteSpace(item.Description))
+                                {
+                                    <div class="small text-muted">
+                                        @item.Description
+                                    </div>
+                                }
+                            </td>
+                            <td>@item.RequestDate.ToString("dd-MMM-yyyy")</td>
+                            <td>@item.Status</td>
+                            <td>@item.RefundStatus</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

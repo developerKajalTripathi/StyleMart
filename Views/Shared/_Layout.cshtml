@@ -1,0 +1,347 @@
+@inject StyleMart.Services.CartService CartSvc
+@inject StyleMart.Services.WishlistService WishSvc
+@inject StyleMart.Data.StyleMartContext Db
+
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Identity
+@using StyleMart.Models
+@inject UserManager<ApplicationUser> UserManager
+
+
+
+@{
+    int cartCount = 0, wishCount = 0;
+    try { cartCount = await CartSvc.CountAsync(); } catch { }
+    try { wishCount = await WishSvc.CountAsync(); } catch { }
+    var categoryNames = new List<string>();
+    try { categoryNames = await Db.Categories.OrderBy(c => c.Name).Select(c => c.Name).ToListAsync(); } catch { }
+
+    var isAuth = User.Identity?.IsAuthenticated == true;
+    var isAdmin = isAuth && User.IsInRole("Admin");
+
+   // var shortName = (User.Identity?.Name ?? "").Split('@')[0];
+
+   
+        var shortName = (User.Identity?.Name ?? "").Split('@')[0];
+
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            var loggedInUser = await UserManager.GetUserAsync(User);
+
+            if (!string.IsNullOrWhiteSpace(loggedInUser?.FullName))
+            {
+                shortName = loggedInUser.FullName;
+            }
+        }
+
+    var ctrl = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var act = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+    var activeCat = Context.Request.Query["category"].ToString();
+
+    string Active(bool on) => on ? "active" : "";
+    bool onShopAll = ctrl == "Products" && act == "Index" && string.IsNullOrEmpty(activeCat);
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - StyleMart</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+
+
+
+
+</head>
+<body data-page="@(ctrl.ToLower())-@(act.ToLower())">
+<header class="sticky-top">
+<nav class="navbar navbar-expand-lg navbar-dark main-nav">
+ <div class="container">
+  <a class="navbar-brand fw-bold" asp-controller="Home" asp-action="Index"><i class="fa-solid fa-bag-shopping me-2"></i>StyleMart</a>
+
+  <div class="d-flex align-items-center gap-3 order-lg-last ms-auto me-2 me-lg-0 nav-icons">
+   <a class="nav-icon-link" asp-controller="Wishlist" asp-action="Index" title="Wishlist">
+    <i class="fa-regular fa-heart"></i><span class="d-none d-xl-inline ms-1">Wishlist</span>
+    <span class="badge rounded-pill bg-danger nav-badge" data-wish-count style="@(wishCount > 0 ? "" : "display:none")">@wishCount</span>
+   </a>
+   <a class="nav-icon-link" asp-controller="Cart" asp-action="Index" title="Cart">
+    <i class="fa-solid fa-cart-shopping"></i><span class="d-none d-xl-inline ms-1">Cart</span>
+    @if (cartCount > 0) {<span class="badge rounded-pill bg-danger nav-badge">@cartCount</span>}
+   </a>
+  </div>
+
+  <button class="navbar-toggler ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-label="Menu"><span class="navbar-toggler-icon"></span></button>
+
+  <div class="collapse navbar-collapse" id="nav">
+   <ul class="navbar-nav me-auto">
+    <li class="nav-item"><a class="nav-link @Active(ctrl == "Home")" asp-controller="Home" asp-action="Index">Home</a></li>
+    <li class="nav-item"><a class="nav-link @Active(onShopAll)" asp-controller="Products" asp-action="Index">Shop All</a></li>
+    <li class="nav-item dropdown">
+     <a class="nav-link dropdown-toggle @Active(ctrl == "Products" && !string.IsNullOrEmpty(activeCat))" href="#" role="button" data-bs-toggle="dropdown">Categories</a>
+     <ul class="dropdown-menu">
+      @foreach (var c in categoryNames)
+      {
+       <li><a class="dropdown-item @Active(activeCat == c)" asp-controller="Products" asp-action="Index" asp-route-category="@c">@c</a></li>
+      }
+      @if (categoryNames.Count > 0) {<li><hr class="dropdown-divider"></li>}
+      <li><a class="dropdown-item" asp-controller="Products" asp-action="Index">All products</a></li>
+     </ul>
+    </li>
+    <li class="nav-item"><a class="nav-link @Active(activeCat == "Women")" asp-controller="Products" asp-action="Index" asp-route-category="Women">Women</a></li>
+    <li class="nav-item"><a class="nav-link @Active(activeCat == "Men")" asp-controller="Products" asp-action="Index" asp-route-category="Men">Men</a></li>
+    <li class="nav-item dropdown">
+     <a class="nav-link dropdown-toggle @Active(ctrl == "Info")" href="#" role="button" data-bs-toggle="dropdown">Help</a>
+     <ul class="dropdown-menu">
+      <li><a class="dropdown-item" asp-controller="Info" asp-action="About"><i class="fa fa-store me-2"></i>About us</a></li>
+      <li><a class="dropdown-item" asp-controller="Info" asp-action="Help"><i class="fa fa-circle-question me-2"></i>Help &amp; FAQs</a></li>
+      <li><a class="dropdown-item" asp-controller="Info" asp-action="Contact"><i class="fa fa-headset me-2"></i>Contact us</a></li>
+     </ul>
+    </li>
+   </ul>
+
+   <form class="d-flex me-lg-3 my-2 my-lg-0" asp-controller="Products" asp-action="Index" method="get">
+    <input class="form-control form-control-sm" name="search" placeholder="Search styles..." />
+    <button class="btn btn-pink btn-sm ms-1" aria-label="Search"><i class="fa fa-search"></i></button>
+   </form>
+
+   @if (isAuth)
+   {
+    <div class="dropdown">
+     <a class="nav-link text-white dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fa-solid fa-user"></i> @shortName</a>
+     <ul class="dropdown-menu dropdown-menu-end">
+      <li><a class="dropdown-item" asp-controller="Account" asp-action="MyOrders"><i class="fa fa-box me-2"></i>My Orders</a></li>
+      <li><a class="dropdown-item" asp-controller="Wishlist" asp-action="Index"><i class="fa fa-heart me-2"></i>My Wishlist</a></li>
+      <li><a class="dropdown-item" asp-controller="Cart" asp-action="Index"><i class="fa fa-cart-shopping me-2"></i>My Cart</a></li>
+      @if (isAdmin)
+      {
+       <li><hr class="dropdown-divider"></li>
+       <li><h6 class="dropdown-header">Admin</h6></li>
+       <li><a class="dropdown-item" asp-controller="Admin" asp-action="Index"><i class="fa-solid fa-chart-line me-2"></i>Dashboard</a></li>
+       <li><a class="dropdown-item" asp-controller="Admin" asp-action="Products"><i class="fa fa-shirt me-2"></i>Products</a></li>
+       <li><a class="dropdown-item" asp-controller="Admin" asp-action="Categories"><i class="fa fa-tags me-2"></i>Categories</a></li>
+       <li><a class="dropdown-item" asp-controller="Admin" asp-action="ProductVariants"><i class="fa fa-palette me-2"></i>Variants</a></li>
+       <li><a class="dropdown-item" asp-controller="Admin" asp-action="Orders"><i class="fa fa-clipboard-list me-2"></i>Orders</a></li>
+       <li><a class="dropdown-item" asp-controller="Admin" asp-action="Reviews"><i class="fa fa-star me-2"></i>Reviews</a></li>
+      }
+      <li><hr class="dropdown-divider"></li>
+      <li><form asp-controller="Account" asp-action="Logout" method="post"><button class="dropdown-item"><i class="fa fa-right-from-bracket me-2"></i>Logout</button></form></li>
+     </ul>
+    </div>
+   }
+   else
+   {
+    <a class="nav-link text-white me-2" asp-controller="Account" asp-action="Login"><i class="fa-solid fa-user"></i> Login</a>
+    <a class="btn btn-pink btn-sm" asp-controller="Account" asp-action="Register">Sign up</a>
+   }
+  </div>
+ </div>
+</nav>
+</header>
+
+<form id="afForm" class="d-none">@Html.AntiForgeryToken()</form>
+
+<main>
+
+        @if (TempData["Message"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show m-3"
+                 role="alert">
+                <i class="fa-solid fa-circle-check me-2"></i>
+                @TempData["Message"]
+
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+
+        @if (TempData["InfoMessage"] != null)
+        {
+            <div class="alert alert-info alert-dismissible fade show m-3"
+                 role="alert">
+                <i class="fa-solid fa-circle-info me-2"></i>
+                @TempData["InfoMessage"]
+
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show m-3"
+                 role="alert">
+                <i class="fa-solid fa-circle-exclamation me-2"></i>
+                @TempData["Error"]
+
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+
+    
+    @RenderBody()</main>
+
+<footer class="site-footer mt-5">
+ <div class="footer-trust">
+  <div class="container">
+   <div class="row g-3 text-center text-md-start">
+    <div class="col-6 col-md-3"><div class="trust-item"><i class="fa-solid fa-money-bill-wave"></i><div><strong>Cash on Delivery</strong><span>Pay when it arrives</span></div></div></div>
+    <div class="col-6 col-md-3"><div class="trust-item"><i class="fa-solid fa-rotate-left"></i><div><strong>Easy Returns</strong><span>Simple &amp; hassle-free</span></div></div></div>
+    <div class="col-6 col-md-3"><div class="trust-item"><i class="fa-solid fa-shield-halved"></i><div><strong>Quality Checked</strong><span>Every piece, every order</span></div></div></div>
+    <div class="col-6 col-md-3"><div class="trust-item"><i class="fa-solid fa-headset"></i><div><strong>Friendly Support</strong><span>We're here to help</span></div></div></div>
+   </div>
+  </div>
+ </div>
+
+ <div class="container footer-main">
+  <div class="row g-4">
+   <div class="col-12 col-lg-4">
+    <a class="footer-brand" asp-controller="Home" asp-action="Index"><i class="fa-solid fa-bag-shopping me-2"></i>StyleMart</a>
+    <p class="footer-about">Fresh fits, timeless essentials and pieces made to move with you. Wear your style, every single day.</p>
+    <div class="footer-social">
+     <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+     <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+     <a href="#" aria-label="X / Twitter"><i class="fa-brands fa-x-twitter"></i></a>
+     <a href="#" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+    </div>
+   </div>
+
+   <div class="col-6 col-md-3 col-lg-2">
+    <h6 class="footer-title">Shop</h6>
+    <ul class="footer-links">
+     <li><a asp-controller="Products" asp-action="Index">All products</a></li>
+     @foreach (var c in categoryNames)
+     {
+      <li><a asp-controller="Products" asp-action="Index" asp-route-category="@c">@c</a></li>
+     }
+    </ul>
+   </div>
+
+   <div class="col-6 col-md-3 col-lg-2">
+    <h6 class="footer-title">My Account</h6>
+    <ul class="footer-links">
+     @if (isAuth)
+     {
+      <li><a asp-controller="Account" asp-action="MyOrders">My Orders</a></li>
+     }
+     else
+     {
+      <li><a asp-controller="Account" asp-action="Login">Login</a></li>
+      <li><a asp-controller="Account" asp-action="Register">Sign up</a></li>
+     }
+     <li><a asp-controller="Wishlist" asp-action="Index">Wishlist</a></li>
+     <li><a asp-controller="Cart" asp-action="Index">Cart</a></li>
+    </ul>
+   </div>
+
+   <div class="col-6 col-md-3 col-lg-2">
+    <h6 class="footer-title">Company</h6>
+    <ul class="footer-links">
+     <li><a asp-controller="Info" asp-action="About">About us</a></li>
+     <li><a asp-controller="Info" asp-action="Help">Help &amp; FAQs</a></li>
+     <li><a asp-controller="Info" asp-action="Contact">Contact us</a></li>
+    </ul>
+   </div>
+
+   <div class="col-6 col-md-3 col-lg-2">
+    <h6 class="footer-title">Get in touch</h6>
+    <ul class="footer-links footer-contact">
+     <li><i class="fa-regular fa-envelope me-2"></i>support@stylemart.com</li>
+     <li><i class="fa-solid fa-truck-fast me-2"></i>Delivery across India</li>
+    </ul>
+   </div>
+  </div>
+ </div>
+
+ <div class="footer-bottom">
+  <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+   <span>© @DateTime.Now.Year StyleMart. All rights reserved.</span>
+   <span class="footer-pay"><i class="fa-solid fa-money-bill-wave me-1"></i>Cash on Delivery available</span>
+   <a href="#top" class="footer-top" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;">Back to top <i class="fa-solid fa-arrow-up ms-1"></i></a>
+  </div>
+ </div>
+</footer>
+
+<div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function () {
+    var tokenEl = document.querySelector('#afForm input[name="__RequestVerificationToken"]');
+    var token = tokenEl ? tokenEl.value : '';
+    var toggleUrl = '@Url.Action("Toggle", "Wishlist")';
+    var wishlistUrl = '@Url.Action("Index", "Wishlist")';
+
+    window.showToast = function (msg, link, linkText) {
+        var wrap = document.getElementById('toastWrap');
+        var t = document.createElement('div');
+        t.className = 'sm-toast';
+        t.textContent = msg + ' ';
+        if (link) { var a = document.createElement('a'); a.href = link; a.textContent = linkText; t.appendChild(a); }
+        wrap.appendChild(t);
+        setTimeout(function () { t.classList.add('show'); }, 10);
+        setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 3200);
+    };
+
+    function setCount(n) {
+        document.querySelectorAll('[data-wish-count]').forEach(function (el) {
+            el.textContent = n;
+            el.style.display = n > 0 ? '' : 'none';
+        });
+    }
+
+    function paint(id, liked) {
+        document.querySelectorAll('[data-wish="' + id + '"]').forEach(function (b) {
+            b.classList.toggle('active', liked);
+            b.setAttribute('aria-pressed', liked ? 'true' : 'false');
+            var i = b.querySelector('i');
+            if (i) { i.classList.toggle('fa-solid', liked); i.classList.toggle('fa-regular', !liked); }
+            var txt = b.querySelector('.wish-text');
+            if (txt) txt.textContent = liked ? 'Wishlisted' : 'Add to Wishlist';
+        });
+    }
+
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-wish]');
+        if (!b) return;
+        e.preventDefault();
+        if (b.dataset.busy) return;
+        b.dataset.busy = '1';
+        var id = b.getAttribute('data-wish');
+
+        fetch(toggleUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-TOKEN': token },
+            body: 'id=' + encodeURIComponent(id)
+        })
+        .then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
+        .then(function (d) {
+            if (!d.ok) { showToast(d.message); return; }
+            paint(id, d.added);
+            setCount(d.count);
+            showToast(d.message, d.added ? wishlistUrl : null, 'View wishlist');
+
+            // Fire a custom event so the wishlist page can react
+            document.dispatchEvent(new CustomEvent('wishlist:toggled', { detail: { id: id, added: d.added } }));
+
+            if (!d.added && document.body.dataset.page === 'wishlist-index') {
+                var col = b.closest('.wish-col');
+                if (col) {
+                    col.classList.add('wish-removing');
+                    setTimeout(function () {
+                        col.remove();
+                        if (!document.querySelector('.wish-col')) location.reload();
+                    }, 250);
+                }
+            }
+        })
+        .catch(function () { showToast('Something went wrong. Please try again.'); })
+        .finally(function () { delete b.dataset.busy; });
+    });
+})();
+</script>
+@await RenderSectionAsync("Scripts", required: false)
+</body></html>

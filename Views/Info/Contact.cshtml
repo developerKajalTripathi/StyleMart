@@ -1,0 +1,11 @@
+@{ ViewData["Title"] = "Contact us"; }
+<div class="container py-5 info-page">
+    <span class="eyebrow text-pink">WE'RE HERE TO HELP</span>
+    <h1 class="info-title">Contact us</h1>
+    <p class="lead text-muted">Questions about an order, a product or anything else? Reach out and we'll get back to you.</p>
+    <div class="row g-4 mt-2">
+        <div class="col-md-4"><div class="info-card"><i class="fa-regular fa-envelope"></i><h5>Email</h5><p>support@stylemart.com</p></div></div>
+        <div class="col-md-4"><div class="info-card"><i class="fa-solid fa-box"></i><h5>Order help</h5><p>Check your order status or cancel a processing order from <a asp-controller="Account" asp-action="MyOrders" class="text-pink fw-semibold">My Orders</a>.</p></div></div>
+        <div class="col-md-4"><div class="info-card"><i class="fa-solid fa-circle-question"></i><h5>Quick answers</h5><p>Browse our <a asp-controller="Info" asp-action="Help" class="text-pink fw-semibold">Help &amp; FAQs</a> for common questions.</p></div></div>
+    </div>
+</div>

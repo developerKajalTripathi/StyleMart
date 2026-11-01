@@ -1,0 +1,82 @@
+@model CheckoutViewModel
+@{
+	ViewData["Title"] = "Delivery address";
+}
+<div class="container py-5">
+	<div class="step-bar"><span class="done">1. Login</span><span class="current">2. Delivery address</span><span>3. Payment</span></div>
+	<div class="row g-4">
+		<div class="col-lg-8">
+			<span class="eyebrow text-pink">ALMOST YOURS</span>
+			<h2 class="mb-4">Delivery address</h2>
+
+			@if (TempData["Error"] != null)
+			{
+				<div class="alert alert-danger">@TempData["Error"]</div>
+			}
+
+			@foreach (var a in Model.Addresses)
+			{
+				<div class="address-card @(a.IsDefault ? "default" : "")">
+					<strong>@a.FullName</strong> <span class="text-muted ms-2">@a.Phone</span>
+					<p class="mb-2 mt-1">@a.OneLine</p>
+					<div class="d-flex gap-2">
+						<form asp-action="Payment" method="get">
+							<input type="hidden" name="addressId" value="@a.Id">
+							<button class="btn btn-pink btn-sm">Deliver here</button>
+						</form>
+						<form asp-action="DeleteAddress" method="post" onsubmit="return confirm('Delete this address?');">
+							<input type="hidden" name="id" value="@a.Id">
+							<button class="btn btn-outline-danger btn-sm">Delete</button>
+						</form>
+					</div>
+				</div>
+			}
+
+			<div class="summary-card mt-4">
+				<h5 class="mb-3">@(Model.Addresses.Any() ? "Add a new address" : "Add delivery address")</h5>
+				<form asp-action="Checkout" method="post">
+					<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+					<div class="row g-3">
+						<div class="col-md-6">
+							<label asp-for="NewAddress.FullName" class="form-label">Name</label>
+							<input asp-for="NewAddress.FullName" class="form-control" placeholder="Full name">
+							<span asp-validation-for="NewAddress.FullName" class="text-danger"></span>
+						</div>
+						<div class="col-md-6">
+							<label asp-for="NewAddress.Phone" class="form-label">Phone</label>
+							<input asp-for="NewAddress.Phone" class="form-control" placeholder="10-digit mobile number" maxlength="10">
+							<span asp-validation-for="NewAddress.Phone" class="text-danger"></span>
+						</div>
+						<div class="col-md-4">
+							<label asp-for="NewAddress.Pincode" class="form-label">Pincode</label>
+							<input asp-for="NewAddress.Pincode" class="form-control" placeholder="6-digit pincode" maxlength="6">
+							<span asp-validation-for="NewAddress.Pincode" class="text-danger"></span>
+						</div>
+						<div class="col-md-4">
+							<label asp-for="NewAddress.City" class="form-label">City</label>
+							<input asp-for="NewAddress.City" class="form-control">
+							<span asp-validation-for="NewAddress.City" class="text-danger"></span>
+						</div>
+						<div class="col-md-4">
+							<label asp-for="NewAddress.State" class="form-label">State</label>
+							<input asp-for="NewAddress.State" class="form-control">
+							<span asp-validation-for="NewAddress.State" class="text-danger"></span>
+						</div>
+						<div class="col-12">
+							<label asp-for="NewAddress.AddressLine" class="form-label">Address</label>
+							<textarea asp-for="NewAddress.AddressLine" class="form-control" rows="3" placeholder="House no., building, street, area"></textarea>
+							<span asp-validation-for="NewAddress.AddressLine" class="text-danger"></span>
+						</div>
+					</div>
+					<button class="btn btn-pink btn-lg w-100 mt-4">Save and deliver here</button>
+				</form>
+			</div>
+		</div>
+		<div class="col-lg-4">
+			<partial name="_PriceDetails" model="Model.Cart" />
+		</div>
+	</div>
+</div>
+@section Scripts {
+	<partial name="_ValidationScriptsPartial" />
+}

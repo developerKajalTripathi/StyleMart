@@ -1,0 +1,157 @@
+﻿@* @page
+@model StyleMart.Views.Products.RateProductModel
+@{
+} *@
+
+
+
+@model StyleMart.Models.Product
+
+@{
+    ViewData["Title"] = "Rate this Product";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .rating-box {
+        max-width: 650px;
+        margin: 35px auto;
+        padding: 30px;
+        background: white;
+        border: 1px solid #eee;
+        border-radius: 16px;
+        box-shadow: 0 5px 25px rgba(0,0,0,.06);
+    }
+
+    .rate-stars {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .rate-stars input {
+        display: none;
+    }
+
+    .rate-stars label {
+        font-size: 38px;
+        color: #ddd;
+        cursor: pointer;
+    }
+
+    .rate-stars label:hover,
+    .rate-stars label:hover ~ label,
+    .rate-stars input:checked ~ label {
+        color: #f5a623;
+    }
+
+    .review-product-img {
+        width: 90px;
+        height: 110px;
+        object-fit: contain;
+        background: #f8f8f8;
+        border-radius: 8px;
+    }
+</style>
+
+<div class="container py-4">
+    <div class="rating-box">
+
+        <a asp-controller="Products"
+           asp-action="Details"
+           asp-route-id="@Model.Id"
+           class="text-decoration-none text-muted">
+            <i class="fa fa-arrow-left me-2"></i>Back to Product
+        </a>
+
+        <h3 class="fw-bold mt-4 mb-4">Rate this Product</h3>
+
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <img src="@Model.ImageUrl"
+                 class="review-product-img"
+                 alt="@Model.Name" />
+
+            <div>
+                <h5 class="fw-bold mb-1">@Model.Name</h5>
+                <div class="text-muted">@Model.Category?.Name</div>
+                <div class="fw-bold mt-2">
+                    ₹@Model.DiscountedPrice.ToString("N0")
+                </div>
+            </div>
+        </div>
+
+        @if (TempData["ReviewError"] != null)
+        {
+            <div class="alert alert-danger">
+                @TempData["ReviewError"]
+            </div>
+        }
+
+        <form asp-controller="Products"
+              asp-action="SubmitReview"
+              method="post">
+
+            @Html.AntiForgeryToken()
+
+            <input type="hidden"
+                   name="productId"
+                   value="@Model.Id" />
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold">
+                    Your Rating
+                </label>
+
+                <div class="rate-stars">
+                    @for (int i = 5; i >= 1; i--)
+                    {
+                        <input type="radio"
+                               id="rating-@i"
+                               name="rating"
+                               value="@i"
+                               required />
+
+                        <label for="rating-@i"
+                               title="@i stars">&#9733;</label>
+                    }
+                </div>
+
+                <small class="text-muted">
+                    Select 1 to 5 stars
+                </small>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">
+                    Your Name
+                </label>
+
+                <input type="text"
+                       name="reviewerName"
+                       class="form-control"
+                       maxlength="80"
+                       placeholder="Enter your name"
+                       required />
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold">
+                    Write Your Review
+                </label>
+
+                <textarea name="comment"
+                          class="form-control"
+                          rows="5"
+                          maxlength="1000"
+                          placeholder="Tell us about the product quality, fitting and your experience..."></textarea>
+            </div>
+
+            <button type="submit"
+                    class="btn btn-dark btn-lg w-100">
+                <i class="fa-solid fa-paper-plane me-2"></i>
+                Submit Review
+            </button>
+        </form>
+    </div>
+</div>

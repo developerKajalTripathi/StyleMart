@@ -1,0 +1,198 @@
+@model IEnumerable<Order>
+@{ ViewData["Title"] = "Manage orders"; }
+
+<style>
+.orders-page { padding: 28px; min-height: 100vh; background: linear-gradient(135deg,#fff7fa,#fff 55%,#fff0f6); }
+.orders-top { display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;flex-wrap:wrap;gap:12px; }
+.orders-panel { background:#fff;border:1px solid #f2dce7;border-radius:18px;overflow:hidden;box-shadow:0 8px 28px rgba(130,45,85,.08); }
+.orders-table thead th { background:#fff0f6;color:#493641;font-weight:700;padding:14px 16px;border-bottom:1px solid #f2dce7;white-space:nowrap;font-size:13px; }
+.orders-table td { padding:14px 16px;vertical-align:middle;font-size:13px;border-bottom:1px solid #fdf6fa; }
+.orders-table tbody tr:hover { background:#fffafc; }
+
+.status-pill {
+    display:inline-flex;align-items:center;gap:5px;
+    border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;
+}
+.pill-processing { background:#fff3cd;color:#856404; }
+.pill-confirmed  { background:#d1ecf1;color:#0c5460; }
+.pill-shipped    { background:#d4edda;color:#155724; }
+.pill-outfordelivery { background:#cce5ff;color:#004085; }
+.pill-delivered  { background:#d4edda;color:#155724; }
+.pill-cancelled  { background:#f8d7da;color:#721c24; }
+
+.update-form { display:flex;flex-direction:column;gap:6px;min-width:200px; }
+.update-form select, .update-form input { font-size:12px; }
+.update-form .btn { font-size:12px;padding:5px 12px; }
+.tracking-input { border:1px solid #eadce4;border-radius:8px;padding:6px 10px;font-size:12px;width:100%; }
+
+.order-meta { font-size:11px;color:#999;margin-top:2px; }
+.order-no { font-weight:700;color:#30232b; }
+
+.pay-chip {
+    display:inline-block;font-size:10px;font-weight:700;
+    padding:2px 7px;border-radius:10px;
+    background:#e8f5e9;color:#16803c;
+}
+.pay-chip.pending { background:#fff3cd;color:#856404; }
+
+@@media(max-width:900px) { .orders-page { padding:15px; } }
+</style>
+
+<div class="admin-shell">
+@await Html.PartialAsync("_AdminSidebar", "Orders")
+<section class="admin-main">
+<div class="orders-page">
+
+    <div class="orders-top">
+        <div>
+            <span class="eyebrow text-pink">FULFILMENT</span>
+            <h2 style="font-weight:800;color:#30232b;margin:2px 0 0;">Manage Orders</h2>
+        </div>
+        <span class="badge rounded-pill text-bg-light border" style="font-size:13px;">@Model.Count() order(s)</span>
+    </div>
+
+    <div class="orders-panel">
+        <div class="table-responsive">
+            <table class="table orders-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Customer</th>
+                        <th>Items / Total</th>
+                        <th>Payment</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Update Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var o in Model)
+                    {
+                        var pillClass = o.Status switch {
+                            "Processing"      => "pill-processing",
+                            "Confirmed"       => "pill-confirmed",
+                            "Shipped"         => "pill-shipped",
+                            "Out for Delivery"=> "pill-outfordelivery",
+                            "Delivered"       => "pill-delivered",
+                            "Cancelled"       => "pill-cancelled",
+                            _                 => "pill-processing"
+                        };
+                        var statusIcon = o.Status switch {
+                            "Processing" => "🛒", "Confirmed" => "✅", "Shipped" => "🚚",
+                            "Out for Delivery" => "🏃", "Delivered" => "🏠", "Cancelled" => "❌", _ => "🛒"
+                        };
+                        <tr>
+                            <td>
+                                <div class="order-no">#@o.OrderNumber</div>
+                                <div class="order-meta">@o.CreatedAt.ToString("dd MMM yyyy, hh:mm tt")</div>
+                                @if (o.ExpectedDeliveryDate.HasValue && o.Status != "Delivered" && o.Status != "Cancelled")
+                                {
+                                    <div class="order-meta">📅 ETA: @o.ExpectedDeliveryDate.Value.ToString("dd MMM yyyy")</div>
+                                }
+                            </td>
+                            <td>
+                                <div class="fw-semibold">@o.CustomerName</div>
+                                <div class="order-meta">@o.Email</div>
+                                <div class="order-meta">📞 @o.Phone</div>
+                                <div class="order-meta" style="max-width:180px;white-space:normal;">📍 @o.Address</div>
+                            </td>
+                            <td>
+                                <div class="fw-bold" style="color:#e83e8c;">₹@o.Total.ToString("N0")</div>
+                                <div class="order-meta">@o.Items.Sum(i => i.Quantity) item(s)</div>
+                                @if (o.Discount > 0)
+                                {
+                                    <div class="order-meta" style="color:#16803c;">Saved ₹@o.Discount.ToString("N0")</div>
+                                }
+                            </td>
+                            <td>
+                                <div>@(o.PaymentMethod == "COD" ? "💵 COD" : "💳 Online")</div>
+                                <span class="pay-chip @(o.PaymentStatus == "Paid" ? "" : "pending")">
+                                    @(o.PaymentStatus == "Paid" ? "✓ Paid" : "⏳ " + o.PaymentStatus)
+                                </span>
+                                @if (!string.IsNullOrEmpty(o.RazorpayPaymentId))
+                                {
+                                    <div class="order-meta" style="font-family:monospace;">@o.RazorpayPaymentId</div>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(o.DetectedCity))
+                                {
+                                    <div>📍 @o.DetectedCity</div>
+                                }
+                                @if (o.Latitude.HasValue && o.Longitude.HasValue)
+                                {
+                                    <a href="https://maps.google.com/?q=@o.Latitude,@o.Longitude" target="_blank"
+                                       class="order-meta" style="color:#0d6efd;">
+                                        View on Map
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="order-meta">—</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="status-pill @pillClass">@statusIcon @o.Status</span>
+                                @if (!string.IsNullOrEmpty(o.TrackingMessage))
+                                {
+                                    <div class="order-meta mt-1" style="white-space:normal;max-width:160px;">
+                                        📍 @o.TrackingMessage
+                                    </div>
+                                }
+                                @if (o.ShippedAt.HasValue)
+                                { <div class="order-meta">🚚 @o.ShippedAt.Value.ToString("dd MMM, hh:mm tt")</div> }
+                                @if (o.DeliveredAt.HasValue)
+                                { <div class="order-meta">✅ @o.DeliveredAt.Value.ToString("dd MMM, hh:mm tt")</div> }
+                            </td>
+                            <td>
+                       @*          @if (o.Status != "Cancelled" && o.Status != "Delivered")
+                                {
+                                    <form asp-action="UpdateStatus" method="post" class="update-form">
+                                        <input type="hidden" name="id" value="@o.Id">
+                                        <select name="status" class="form-select form-select-sm">
+                                            @foreach (var st in new[] { "Processing", "Confirmed", "Shipped", "Out for Delivery", "Delivered", "Cancelled" })
+                                            {
+                                                <option @(o.Status == st ? "selected" : "")>@st</option>
+                                            }
+                                        </select>
+                                        <input type="text" name="trackingMessage" class="tracking-input"
+                                               placeholder="Tracking message (optional)"
+                                               value="@o.TrackingMessage" />
+                                        <button class="btn btn-sm btn-dark">Update</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="text-muted" style="font-size:12px;">
+                                        @(o.Status == "Delivered" ? "✅ Completed" : "❌ Cancelled")
+                                    </span>
+                                }
+
+
+ *@
+
+
+                                        @foreach (var st in new[] { "Processing", "Confirmed", "Shipped", "Out for Delivery", "Delivered", "Cancelled" })
+                                        {
+                                            if (o.Status == st)
+                                            {
+                                                <option value="@st" selected="selected">@st</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@st">@st</option>
+                                            }
+                                        }
+                                       
+
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+</section>
+</div>

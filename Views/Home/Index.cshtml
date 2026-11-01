@@ -1,0 +1,192 @@
+@model IEnumerable<Product>
+@{
+    ViewData["Title"] = "Fashion for everyone";
+    var discountedProducts = Model.Where(p => p.DiscountPercentage > 0).ToList();
+}
+
+@* ═══════════════ ANIMATED HERO SLIDER ═══════════════ *@
+<section class="hero-slider" id="heroSlider" aria-label="Hero banner">
+    <div class="hero-slide active" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);">
+        <div class="container hero-slide-content">
+            <span class="eyebrow">NEW SEASON · NEW YOU</span>
+            <h1>Find your<br><span>everyday style.</span></h1>
+            <p>Fresh fits. Timeless essentials. Pieces made to move with you.</p>
+            <a asp-controller="Products" asp-action="Index" class="btn btn-pink btn-lg mt-2">
+                Shop collection <i class="fa fa-arrow-right ms-2"></i>
+            </a>
+        </div>
+        <div class="hero-slide-art">
+            <div class="hero-art-circle c1"></div>
+            <div class="hero-art-circle c2"></div>
+            <div class="hero-art-circle c3"></div>
+        </div>
+    </div>
+    <div class="hero-slide" style="background: linear-gradient(135deg, #2d1b69 0%, #11998e 100%);">
+        <div class="container hero-slide-content">
+            <span class="eyebrow">EXCLUSIVE DEALS</span>
+            <h1>Big savings<br><span>await you.</span></h1>
+            <p>Upto 50% off on select styles. Limited time — shop before it's gone.</p>
+            <a asp-controller="Products" asp-action="Index" class="btn btn-pink btn-lg mt-2">
+                Shop Sale <i class="fa fa-tag ms-2"></i>
+            </a>
+        </div>
+        <div class="hero-slide-art">
+            <div class="hero-art-circle c1" style="background: rgba(255,200,0,.15)"></div>
+            <div class="hero-art-circle c2" style="background: rgba(255,100,100,.1)"></div>
+            <div class="hero-art-circle c3" style="background: rgba(100,255,200,.08)"></div>
+        </div>
+    </div>
+    <div class="hero-slide" style="background: linear-gradient(135deg, #c94b4b 0%, #4b134f 100%);">
+        <div class="container hero-slide-content">
+            <span class="eyebrow">TRENDING NOW</span>
+            <h1>Own the<br><span>runway look.</span></h1>
+            <p>Hand-picked by our style team. The pieces everyone is talking about.</p>
+            <a asp-controller="Products" asp-action="Index" class="btn btn-dark btn-lg mt-2">
+                Explore Trends <i class="fa fa-fire ms-2"></i>
+            </a>
+        </div>
+        <div class="hero-slide-art">
+            <div class="hero-art-circle c1" style="background: rgba(255,255,255,.08)"></div>
+            <div class="hero-art-circle c2" style="background: rgba(200,100,255,.1)"></div>
+            <div class="hero-art-circle c3" style="background: rgba(255,200,100,.07)"></div>
+        </div>
+    </div>
+
+    <div class="hero-dots" id="heroDots">
+        <button class="hero-dot active" data-slide="0" aria-label="Slide 1"></button>
+        <button class="hero-dot" data-slide="1" aria-label="Slide 2"></button>
+        <button class="hero-dot" data-slide="2" aria-label="Slide 3"></button>
+    </div>
+    <button class="hero-nav prev" id="heroPrev" aria-label="Previous slide"><i class="fa fa-chevron-left"></i></button>
+    <button class="hero-nav next" id="heroNext" aria-label="Next slide"><i class="fa fa-chevron-right"></i></button>
+</section>
+
+<div class="container py-5">
+
+    @* ── Categories ── *@
+    @if (ViewBag.Categories is List<Category> cats && cats.Any())
+    {
+        <div class="category-strip">
+            @foreach (var c in cats)
+            {
+                <a class="category-chip" asp-controller="Products" asp-action="Index" asp-route-category="@c.Name">
+                    <span class="category-circle">
+                        @if (!string.IsNullOrWhiteSpace(c.ImageUrl)) { <img src="@c.ImageUrl" alt="@c.Name"> } else { <text>@c.Name.Substring(0, 1).ToUpper()</text> }
+                    </span>
+                    <span>@c.Name</span>
+                </a>
+            }
+        </div>
+    }
+
+    @* ── Hot Deals / Discount Section ── *@
+    @if (discountedProducts.Any())
+    {
+        <div class="deals-section mb-5">
+            <div class="deals-header">
+                <div class="deals-title-wrap">
+                    <span class="deals-fire"><i class="fa fa-fire"></i></span>
+                    <div>
+                        <span class="eyebrow text-danger" style="letter-spacing:2px;">HOT DEALS</span>
+                        <h2 class="mb-0">Today's Best Discounts</h2>
+                    </div>
+                </div>
+                <a asp-controller="Products" asp-action="Index" class="btn btn-outline-danger btn-sm">
+                    View all <i class="fa fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+            <div class="row g-4 mt-1">
+                @foreach (var p in discountedProducts.Take(4))
+                {
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <partial name="_ProductCard" model="p" />
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @* ── Latest Products ── *@
+    <div class="section-heading">
+        <div><span class="eyebrow text-pink">CURATED FOR YOU</span><h2>Shop the latest</h2></div>
+        <a asp-controller="Products" asp-action="Index" class="text-dark">View all <i class="fa fa-arrow-right ms-1"></i></a>
+    </div>
+    <div class="row g-4">
+        @foreach (var p in Model)
+        {
+            <div class="col-6 col-md-4 col-lg-3">
+                <partial name="_ProductCard" model="p" />
+            </div>
+        }
+    </div>
+
+    <div class="promo-strip mt-5">
+        <div>
+            <span class="eyebrow">THE STYLE EDIT</span>
+            <h3>Good outfits. Better days.</h3>
+            <p class="mb-0">Discover your next favourite piece.</p>
+        </div>
+        <a asp-controller="Products" asp-action="Index" class="btn btn-dark">Explore now</a>
+    </div>
+</div>
+
+@* ── Scrolling Marquee Banner ── *@
+<div class="marquee-wrap" aria-hidden="true">
+    <div class="marquee-track">
+        <span>FREE DELIVERY ON ORDERS ABOVE ₹499</span>
+        <span class="mx-4">✦</span>
+        <span>EASY 7-DAY RETURNS</span>
+        <span class="mx-4">✦</span>
+        <span>CASH ON DELIVERY AVAILABLE</span>
+        <span class="mx-4">✦</span>
+        <span>NEW ARRIVALS EVERY WEEK</span>
+        <span class="mx-4">✦</span>
+        <span>FREE DELIVERY ON ORDERS ABOVE ₹499</span>
+        <span class="mx-4">✦</span>
+        <span>EASY 7-DAY RETURNS</span>
+        <span class="mx-4">✦</span>
+        <span>CASH ON DELIVERY AVAILABLE</span>
+        <span class="mx-4">✦</span>
+        <span>NEW ARRIVALS EVERY WEEK</span>
+        <span class="mx-4">✦</span>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    var slides = document.querySelectorAll('.hero-slide');
+    var dots   = document.querySelectorAll('.hero-dot');
+    var current = 0;
+    var timer;
+
+    function goTo(n) {
+        slides[current].classList.remove('active');
+        dots[current].classList.remove('active');
+        current = (n + slides.length) % slides.length;
+        slides[current].classList.add('active');
+        dots[current].classList.add('active');
+    }
+
+    function next() { goTo(current + 1); }
+    function prev() { goTo(current - 1); }
+
+    function startTimer() {
+        clearInterval(timer);
+        timer = setInterval(next, 5000);
+    }
+
+    document.getElementById('heroNext').addEventListener('click', function() { next(); startTimer(); });
+    document.getElementById('heroPrev').addEventListener('click', function() { prev(); startTimer(); });
+
+    dots.forEach(function(d) {
+        d.addEventListener('click', function() {
+            goTo(parseInt(d.dataset.slide));
+            startTimer();
+        });
+    });
+
+    startTimer();
+})();
+</script>
+}

@@ -1,0 +1,81 @@
+@model IEnumerable<Order>
+@{
+	ViewData["Title"] = "Admin dashboard";
+}
+
+
+<div class="admin-shell">
+	@await Html.PartialAsync("_AdminSidebar", "Index")
+	<section class="admin-main">
+		<div class="admin-top">
+			<div>
+				<span class="eyebrow text-pink">STORE OVERVIEW</span>
+				<h2>Dashboard</h2>
+			</div>
+			<a asp-controller="Home" asp-action="Index" class="btn btn-outline-dark">View store ↗</a>
+		</div>
+		<div class="row g-3 mb-4">
+			<div class="col-6 col-xl-3">
+				<div class="stat-card">
+					<span>Total products</span>
+					<strong>@ViewBag.ProductCount</strong>
+					<i class="fa fa-shirt"></i>
+				</div>
+			</div>
+
+			<div class="col-6 col-xl-3">
+				<div class="stat-card">
+					<span>Total orders</span>
+					<strong>@ViewBag.OrderCount</strong>
+					<i class="fa fa-box"></i>
+				</div>
+			</div>
+			<div class="col-6 col-xl-3">
+				<div class="stat-card">
+					<span>Customers</span><strong>@ViewBag.CustomerCount</strong>
+					<i class="fa fa-users"></i>
+				</div>
+			</div>
+			<div class="col-6 col-xl-3">
+				<div class="stat-card">
+					<span>Total sales</span>
+					<strong>
+						₹@(((decimal)ViewBag.Sales).ToString("N0"))
+
+					</strong><i class="fa fa-indian-rupee-sign"></i>
+				</div>
+			</div>
+		</div>
+		<div class="admin-panel">
+			<div class="d-flex justify-content-between align-items-center mb-3">
+				<h5>Recent orders</h5><a asp-action="Orders">View all</a>
+			</div><div class="table-responsive">
+				<table class="table align-middle">
+					<thead>
+						<tr>
+							<th>Order</th>
+							<th>Customer</th>
+							<th>Date</th>
+							<th>Total</th>
+							<th>Status</th>
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (var o in Model)
+						{
+							<tr>
+								<td>#@o.OrderNumber</td>
+								<td>@o.CustomerName</td>
+								<td>@o.CreatedAt.ToString("dd MMM yyyy")</td>
+								<td>₹@o.Total.ToString("N0")</td>
+								<td>
+									<span class="status-pill">@o.Status</span>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</section>
+</div>

@@ -1,0 +1,51 @@
+@model IEnumerable<Product>
+@{
+	ViewData["Title"] = "Shop";
+}
+<div class="container py-5">
+	<div class="section-heading">
+		<div>
+			<span class="eyebrow text-pink">STYLE STARTS HERE</span>
+			<h2>Shop all styles</h2>
+		</div>
+		<span class="text-muted">@Model.Count() products</span>
+	</div>
+	<form method="get" class="filter-bar row g-2 mb-4">
+		<div class="col-md-5">
+			<input class="form-control" name="search" value="@ViewBag.Search" placeholder="Search products..." />
+		</div>
+		<div class="col-md-3">
+			<select name="category" class="form-select"><option value="">All categories</option>@foreach(string c in (List<string>)ViewBag.Categories){
+			<option selected="@(ViewBag.Category == c)" value="@c">@c</option>
+						}
+</select>
+		</div>
+		<div class="col-md-2">
+			<select name="sort" class="form-select">
+				<option value="">Name</option>
+				<option value="price-low" selected="@(ViewBag.Sort == "price-low")">
+					Price: low to high
+				</option>
+				<option value="price-high" selected="@(ViewBag.Sort == "price-high")">Price: high to low</option>
+			</select>
+		</div>
+		<div class="col-md-2">
+			<button class="btn btn-dark w-100">Apply filters</button>
+		</div>
+	</form>
+	<div class="row g-4">
+		@foreach (var p in Model)
+		{
+			<div class="col-6 col-md-4 col-lg-3">
+				<partial name="_ProductCard" model="p" />
+			</div>
+		}
+	</div>
+	@if (!Model.Any())
+	{
+		<div class="empty-state">
+			<i class="fa fa-box-open"></i><h4>No products found</h4>
+			<p>Try a different search or category.</p>
+		</div>
+	}
+</div>

@@ -1,0 +1,198 @@
+@model Order
+@{ ViewData["Title"] = "Order #" + Model.OrderNumber + " – Details"; }
+
+<style>
+    .od-wrap { max-width: 900px; margin: 36px auto; padding: 0 16px 60px; }
+    .od-back { color: #e83e8c; font-size: 13px; font-weight: 600; text-decoration: none; }
+    .od-back:hover { color: #c92c74; }
+    .od-header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 14px 0 24px; }
+    .od-header h2 { font-size: 22px; font-weight: 800; color: #30232b; margin: 0; }
+
+    /* Tracking */
+    .track-card {
+        background: white; border: 1.5px solid #f2dce7; border-radius: 18px;
+        padding: 22px 26px; margin-bottom: 20px; box-shadow: 0 6px 20px rgba(130,45,85,.07);
+    }
+    .track-card h5 { font-weight: 700; color: #30232b; margin-bottom: 18px; }
+
+    .track-steps { display: flex; align-items: flex-start; overflow-x: auto; padding-bottom: 6px; }
+    .track-step { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 80px; position: relative; z-index: 1; }
+    .track-step::before { content: ''; position: absolute; top: 17px; left: 50%; width: 100%; height: 3px; background: #e9ecef; z-index: 0; }
+    .track-step:last-child::before { display: none; }
+    .track-step.done::before { background: #e83e8c; }
+    .track-step.active::before { background: linear-gradient(90deg, #e83e8c, #e9ecef); }
+
+    .step-dot { width: 34px; height: 34px; border-radius: 50%; background: #e9ecef; border: 3px solid #dee2e6; display: flex; align-items: center; justify-content: center; font-size: 14px; position: relative; z-index: 2; }
+    .track-step.done .step-dot { background: #e83e8c; border-color: #e83e8c; color: white; box-shadow: 0 2px 10px rgba(232,62,140,.35); }
+    .track-step.active .step-dot { background: white; border-color: #e83e8c; color: #e83e8c; animation: pulse-dot 1.5s infinite; }
+    @@keyframes pulse-dot { 0%,100%{box-shadow:0 0 0 0 rgba(232,62,140,.4);}50%{box-shadow:0 0 0 7px rgba(232,62,140,0);} }
+
+    .step-label { font-size: 10px; font-weight: 600; color: #aaa; margin-top: 7px; text-align: center; max-width: 75px; }
+    .track-step.done .step-label, .track-step.active .step-label { color: #e83e8c; }
+    .step-date { font-size: 9px; color: #ccc; margin-top: 2px; text-align: center; }
+    .track-step.done .step-date { color: #666; }
+
+    .delivery-pill { background:#fff0f8;border:1.5px solid #f2dce7;border-radius:12px;padding:10px 15px;display:flex;align-items:center;gap:10px;margin-top:16px; }
+    .dp-label { font-size:11px;color:#888; }
+    .dp-date { font-size:15px;font-weight:800;color:#e83e8c; }
+
+    /* Detail cards */
+    .od-card { background:white;border:1.5px solid #f2dce7;border-radius:16px;padding:20px 24px;margin-bottom:18px;box-shadow:0 4px 16px rgba(130,45,85,.06); }
+    .od-card h5 { font-weight:700;color:#30232b;margin-bottom:14px; }
+    .od-row { display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f9f0f5;font-size:13px; }
+    .od-row:last-child { border-bottom:none; }
+    .od-row .lbl { color:#777; }
+    .od-row .val { font-weight:600;color:#222;text-align:right; }
+
+    .item-img { width:52px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #f0dde8; }
+    .pay-badge { display:inline-flex;align-items:center;gap:5px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:16px;padding:2px 10px;font-size:11px;font-weight:700;color:#16803c; }
+    .pay-badge.pending { background:#fff3cd;color:#856404;border-color:#ffc107; }
+
+    .btn-cancel { border:2px solid #dc3545;color:#dc3545;background:white;border-radius:10px;padding:9px 20px;font-weight:700;font-size:13px;cursor:pointer;transition:background .2s,color .2s; }
+    .btn-cancel:hover { background:#dc3545;color:white; }
+
+    @@media(max-width:576px) { .track-steps { gap:0; } .step-label { font-size:9px;max-width:60px; } }
+</style>
+
+<div class="od-wrap">
+    <a asp-action="MyOrders" class="od-back">← My Orders</a>
+
+    <div class="od-header">
+        <h2>Order #@Model.OrderNumber</h2>
+        @{
+            var pillCls = Model.Status switch {
+                "Delivered" => "text-success", "Cancelled" => "text-danger",
+                "Shipped" or "Out for Delivery" => "text-primary", _ => "text-warning"
+            };
+        }
+        <span class="status-pill fs-6 @pillCls">@Model.Status</span>
+    </div>
+
+    @if (TempData["Message"] != null) { <div class="alert alert-success">@TempData["Message"]</div> }
+    @if (TempData["Error"] != null) { <div class="alert alert-danger">@TempData["Error"]</div> }
+
+    <!-- Tracking Card -->
+    <div class="track-card">
+        <h5>📦 Order Tracking</h5>
+
+        @{
+            var steps = new[]
+            {
+                ("Order Placed",      "🛒", "Processing",       Model.CreatedAt),
+                ("Confirmed",         "✅", "Confirmed",         (DateTime?)null),
+                ("Shipped",           "🚚", "Shipped",           Model.ShippedAt),
+                ("Out for Delivery",  "🏃", "Out for Delivery",  Model.OutForDeliveryAt),
+                ("Delivered",         "🏠", "Delivered",         Model.DeliveredAt)
+            };
+            var statusOrder = new[] { "Processing", "Confirmed", "Shipped", "Out for Delivery", "Delivered" };
+            var curIdx = Array.IndexOf(statusOrder, Model.Status);
+            if (curIdx < 0) curIdx = 0;
+        }
+
+        <div class="track-steps">
+            @for (int i = 0; i < steps.Length; i++)
+            {
+                var (label, icon, _, dt) = steps[i];
+                string cls = i < curIdx ? "done" : (i == curIdx && Model.Status != "Cancelled" ? "active" : "");
+                <div class="track-step @cls">
+                    <div class="step-dot">@(i <= curIdx ? icon : "○")</div>
+                    <div class="step-label">@label</div>
+                    <div class="step-date">
+                        @if (dt.HasValue) { @dt.Value.ToString("dd MMM, hh:mm tt") }
+                        else if (i == 0) { @Model.CreatedAt.ToString("dd MMM, hh:mm tt") }
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (Model.Status == "Cancelled")
+        {
+            <div class="alert alert-danger mt-3 mb-0" style="border-radius:10px;">❌ This order was cancelled.</div>
+        }
+        else
+        {
+            <div class="delivery-pill">
+                <span style="font-size:20px;">📅</span>
+                <div>
+                    <div class="dp-label">Expected Delivery</div>
+                    <div class="dp-date">
+                        @(Model.DeliveredAt.HasValue
+                            ? "✅ Delivered on " + Model.DeliveredAt.Value.ToString("dd MMM yyyy")
+                            : Model.ExpectedDeliveryDate.HasValue
+                                ? Model.ExpectedDeliveryDate.Value.ToString("dddd, dd MMM yyyy")
+                                : "In 5–7 business days")
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(Model.TrackingMessage))
+        {
+            <div class="alert alert-info mt-3 mb-0" style="border-radius:10px;font-size:13px;">
+                📍 @Model.TrackingMessage
+            </div>
+        }
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <!-- Items -->
+            <div class="od-card">
+                <h5>🛍️ Items Ordered</h5>
+                @foreach (var item in Model.Items)
+                {
+                    <div class="d-flex align-items-center gap-3 py-3 border-bottom">
+                        <img src="@item.ImageUrl" class="item-img" alt=""
+                             onerror="this.onerror=null;this.src='https://placehold.co/52x60/f5f0ed/222?text=SM'">
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold">@item.ProductName</div>
+                            @if (!string.IsNullOrEmpty(item.VariantInfo))
+                            { <div class="small text-muted">@item.VariantInfo</div> }
+                            <div class="small text-muted">Qty: @item.Quantity × ₹@item.UnitPrice.ToString("N0")</div>
+                        </div>
+                        <div class="fw-bold">₹@item.LineTotal.ToString("N0")</div>
+                    </div>
+                }
+            </div>
+
+            <!-- Cancel button -->
+            @if (Model.Status == "Processing")
+            {
+                <form asp-action="CancelOrder" asp-route-id="@Model.Id" method="post"
+                      onsubmit="return confirm('Are you sure you want to cancel this order?');">
+                    <button class="btn-cancel">❌ Cancel Order</button>
+                </form>
+            }
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Delivery Address -->
+            <div class="od-card">
+                <h5>📍 Delivery Address</h5>
+                <div class="fw-semibold">@Model.CustomerName</div>
+                <div class="small text-muted mt-1">@Model.Address</div>
+                <div class="small text-muted mt-1">📞 @Model.Phone</div>
+            </div>
+
+            <!-- Payment summary -->
+            <div class="od-card">
+                <h5>💳 Payment Summary</h5>
+                <div class="od-row"><span class="lbl">MRP Total</span><span class="val">₹@Model.Subtotal.ToString("N0")</span></div>
+                <div class="od-row"><span class="lbl">Discount</span><span class="val text-success">− ₹@Model.Discount.ToString("N0")</span></div>
+                <div class="od-row"><span class="lbl fw-bold">Total Paid</span><span class="val" style="color:#e83e8c;font-size:16px;">₹@Model.Total.ToString("N0")</span></div>
+                <div class="od-row">
+                    <span class="lbl">Payment Method</span>
+                    <span class="val">@(Model.PaymentMethod == "COD" ? "💵 Cash on Delivery" : "💳 " + Model.PaymentMethod)</span>
+                </div>
+                <div class="od-row">
+                    <span class="lbl">Payment Status</span>
+                    <span class="val">
+                        <span class="pay-badge @(Model.PaymentStatus == "Paid" ? "" : "pending")">
+                            @(Model.PaymentStatus == "Paid" ? "✓" : "⏳") @Model.PaymentStatus
+                        </span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,304 @@
+@model PaymentViewModel
+@{
+    ViewData["Title"] = "Payment";
+    var razorpayKey = ViewBag.RazorpayKeyId as string ?? "";
+}
+
+<style>
+    .payment-section { margin-bottom: 18px; }
+    .pay-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        border: 2px solid #eadce4;
+        border-radius: 14px;
+        padding: 16px 18px;
+        cursor: pointer;
+        margin-bottom: 12px;
+        transition: border-color .2s, box-shadow .2s;
+        background: #fff;
+    }
+    .pay-option:hover { border-color: #e83e8c; }
+    .pay-option.selected { border-color: #e83e8c; box-shadow: 0 0 0 3px rgba(232,62,140,.1); }
+    .pay-option input[type=radio] { margin-top: 4px; accent-color: #e83e8c; width: 18px; height: 18px; flex-shrink: 0; }
+    .pay-option .pay-icon { font-size: 28px; }
+    .pay-option.disabled { opacity: .5; cursor: not-allowed; }
+
+    .location-banner {
+        background: linear-gradient(135deg, #fff0f8, #fff);
+        border: 1.5px solid #f2dce7;
+        border-radius: 14px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+    .location-banner .loc-icon { font-size: 22px; color: #e83e8c; flex-shrink: 0; }
+    .location-btn {
+        background: #e83e8c;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 6px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .2s;
+    }
+    .location-btn:hover { background: #c92c74; }
+    .location-ok { color: #16803c; font-weight: 600; font-size: 13px; display: none; }
+
+    .btn-place-order {
+        background: linear-gradient(135deg, #e83e8c, #c92c74);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 15px;
+        font-size: 17px;
+        font-weight: 700;
+        width: 100%;
+        cursor: pointer;
+        transition: opacity .2s, transform .2s;
+        letter-spacing: .3px;
+    }
+    .btn-place-order:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-place-order:disabled { opacity: .6; cursor: not-allowed; }
+
+    .rzp-spinner { display: none; }
+    .rzp-spinner.show { display: inline-block; }
+
+    .secure-badge {
+        text-align: center;
+        font-size: 12px;
+        color: #888;
+        margin-top: 8px;
+    }
+    .secure-badge i { color: #16803c; }
+</style>
+
+<div class="container py-5">
+    <div class="step-bar"><span class="done">1. Login</span><span class="done">2. Delivery address</span><span class="current">3. Payment</span></div>
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <h2 class="mb-4">Order summary &amp; payment</h2>
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger">@TempData["Error"]</div>
+            }
+
+            <div class="address-card">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <small class="text-muted">DELIVER TO</small><br>
+                        <strong>@Model.Address.FullName</strong> <span class="text-muted ms-2">@Model.Address.Phone</span>
+                        <p class="mb-0">@Model.Address.OneLine</p>
+                    </div>
+                    <a asp-action="Checkout" class="small">Change</a>
+                </div>
+            </div>
+
+            <!-- GPS Location capture -->
+            <div class="location-banner">
+                <span class="loc-icon">📍</span>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold" style="font-size:14px;">Share your current location</div>
+                    <div class="text-muted" style="font-size:12px;">For faster delivery and accurate address detection</div>
+                </div>
+                <button type="button" class="location-btn" id="btnGetLocation" onclick="captureLocation()">Use GPS</button>
+                <span class="location-ok" id="locationOk">✓ Location captured</span>
+            </div>
+
+            <!-- Order items -->
+            <div class="summary-card mb-4">
+                @foreach (var l in Model.Cart.Lines)
+                {
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <img class="cart-thumb" src="@l.ImageUrl" alt="" onerror="this.onerror=null;this.src='https://placehold.co/130x150/f5f0ed/222?text=SM'">
+                        <div class="flex-grow-1">
+                            <strong>@l.Name</strong>
+                            @if (l.VariantInfo != null) { <div class="small text-muted">@l.VariantInfo</div> }
+                            <div class="small text-muted">Qty: @l.Quantity</div>
+                        </div>
+                        <strong>₹@l.LineTotal.ToString("N0")</strong>
+                    </div>
+                }
+            </div>
+
+            <!-- Payment method selection -->
+            <h5 class="mb-3">Select Payment Method</h5>
+
+            <label class="pay-option selected" id="pay-cod" onclick="selectPayment('COD')">
+                <input type="radio" name="payMode" value="COD" checked id="radio-cod">
+                <span class="pay-icon">💵</span>
+                <span>
+                    <strong>Cash on Delivery</strong><br>
+                    <small class="text-muted">Pay when your order arrives</small>
+                </span>
+            </label>
+
+            <label class="pay-option" id="pay-online" onclick="selectPayment('Online')">
+                <input type="radio" name="payMode" value="Online" id="radio-online">
+                <span class="pay-icon">💳</span>
+                <span>
+                    <strong>Pay Online (UPI / Cards / Net Banking)</strong><br>
+                    <small class="text-muted">Secure payment via Razorpay</small>
+                </span>
+            </label>
+
+            <!-- Hidden form for COD -->
+            <form id="formCOD" asp-action="PlaceOrder" method="post" style="display:none;">
+                <input type="hidden" name="addressId" value="@Model.Address.Id">
+                <input type="hidden" name="paymentMethod" value="COD">
+                <input type="hidden" name="latitude" id="hid_lat">
+                <input type="hidden" name="longitude" id="hid_lng">
+                <input type="hidden" name="detectedCity" id="hid_city">
+            </form>
+
+            <!-- Hidden form for Online payment (after Razorpay callback) -->
+            <form id="formOnline" asp-action="PlaceOrder" method="post" style="display:none;">
+                <input type="hidden" name="addressId" value="@Model.Address.Id">
+                <input type="hidden" name="paymentMethod" value="Online">
+                <input type="hidden" name="razorpayPaymentId" id="hid_rzp_pid">
+                <input type="hidden" name="razorpayOrderId" id="hid_rzp_oid">
+                <input type="hidden" name="razorpaySignature" id="hid_rzp_sig">
+                <input type="hidden" name="latitude" id="hid_lat2">
+                <input type="hidden" name="longitude" id="hid_lng2">
+                <input type="hidden" name="detectedCity" id="hid_city2">
+            </form>
+
+            <button id="btnPlaceOrder" class="btn-place-order mt-3" onclick="handlePlaceOrder()">
+                <span id="orderBtnText">Place order · ₹@Model.Cart.Total.ToString("N0")</span>
+                <span class="rzp-spinner" id="orderSpinner">⏳ Processing...</span>
+            </button>
+            <div class="secure-badge"><i class="fa fa-lock"></i> 100% Secure Payments by Razorpay</div>
+        </div>
+        <div class="col-lg-4">
+            <partial name="_PriceDetails" model="Model.Cart" />
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+    var selectedPayment = 'COD';
+    var capturedLat = null, capturedLng = null, capturedCity = '';
+    var rzpKey = '@Html.Raw(razorpayKey)';
+    var addressId = @Model.Address.Id;
+    var orderTotal = @Model.Cart.Total;
+
+    function selectPayment(method) {
+        selectedPayment = method;
+        document.getElementById('pay-cod').classList.toggle('selected', method === 'COD');
+        document.getElementById('pay-online').classList.toggle('selected', method === 'Online');
+        document.getElementById('radio-cod').checked = (method === 'COD');
+        document.getElementById('radio-online').checked = (method === 'Online');
+    }
+
+    function captureLocation() {
+        if (!navigator.geolocation) {
+            alert('Geolocation is not supported by your browser.');
+            return;
+        }
+        var btn = document.getElementById('btnGetLocation');
+        btn.textContent = '...';
+        btn.disabled = true;
+        navigator.geolocation.getCurrentPosition(function (pos) {
+            capturedLat = pos.coords.latitude;
+            capturedLng = pos.coords.longitude;
+            btn.style.display = 'none';
+            document.getElementById('locationOk').style.display = 'inline';
+
+            // Try reverse geocode using free API
+            fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + capturedLat + '&lon=' + capturedLng)
+                .then(r => r.json())
+                .then(data => {
+                    capturedCity = data.address?.city || data.address?.town || data.address?.village || '';
+                })
+                .catch(() => {});
+        }, function () {
+            btn.textContent = 'Use GPS';
+            btn.disabled = false;
+            alert('Could not get location. Please allow location access.');
+        });
+    }
+
+    async function handlePlaceOrder() {
+        var btn = document.getElementById('btnPlaceOrder');
+        btn.disabled = true;
+        document.getElementById('orderBtnText').style.display = 'none';
+        document.getElementById('orderSpinner').classList.add('show');
+
+        // Fill location fields
+        ['hid_lat','hid_lat2'].forEach(id => { var el = document.getElementById(id); if(el) el.value = capturedLat || ''; });
+        ['hid_lng','hid_lng2'].forEach(id => { var el = document.getElementById(id); if(el) el.value = capturedLng || ''; });
+        ['hid_city','hid_city2'].forEach(id => { var el = document.getElementById(id); if(el) el.value = capturedCity || ''; });
+
+        if (selectedPayment === 'COD') {
+            document.getElementById('formCOD').submit();
+            return;
+        }
+
+        // Online payment via Razorpay
+        if (!rzpKey || rzpKey === 'rzp_test_YOUR_KEY_ID') {
+            alert('Razorpay is not configured. Please update the KeyId in appsettings.json.');
+            btn.disabled = false;
+            document.getElementById('orderBtnText').style.display = 'inline';
+            document.getElementById('orderSpinner').classList.remove('show');
+            return;
+        }
+
+        try {
+            // Get CSRF token
+            var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                     || document.cookie.split('; ').find(r => r.startsWith('XSRF-TOKEN='))?.split('=')[1] || '';
+
+            var resp = await fetch('/Cart/CreateRazorpayOrder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+                body: JSON.stringify({ addressId: addressId })
+            });
+
+            if (!resp.ok) throw new Error('Could not create payment order.');
+            var data = await resp.json();
+
+            var options = {
+                key: data.keyId,
+                amount: data.amount,
+                currency: data.currency,
+                name: 'StyleMart',
+                description: 'Order Payment',
+                order_id: data.orderId,
+                handler: function (response) {
+                    document.getElementById('hid_rzp_pid').value = response.razorpay_payment_id;
+                    document.getElementById('hid_rzp_oid').value = response.razorpay_order_id;
+                    document.getElementById('hid_rzp_sig').value = response.razorpay_signature;
+                    document.getElementById('formOnline').submit();
+                },
+                prefill: {
+                    name: '@Model.Address.FullName',
+                    contact: '@Model.Address.Phone'
+                },
+                theme: { color: '#e83e8c' },
+                modal: {
+                    ondismiss: function () {
+                        btn.disabled = false;
+                        document.getElementById('orderBtnText').style.display = 'inline';
+                        document.getElementById('orderSpinner').classList.remove('show');
+                    }
+                }
+            };
+            var rzp = new Razorpay(options);
+            rzp.open();
+        } catch (err) {
+            alert('Payment initialization failed: ' + err.message);
+            btn.disabled = false;
+            document.getElementById('orderBtnText').style.display = 'inline';
+            document.getElementById('orderSpinner').classList.remove('show');
+        }
+    }
+</script>
+}

@@ -1,0 +1,135 @@
+@model List<StyleMart.Models.ProductReview>
+@{
+    ViewData["Title"] = "Customer Reviews";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .reviews-admin-table td, .reviews-admin-table th { vertical-align: middle; }
+    .star-row { display: inline-flex; gap: 2px; }
+    .star-row .si { font-size: 13px; color: #f5a623; }
+    .star-row .si.e { color: #ddd; }
+    .badge-visible { background: #d4edda; color: #155724; }
+    .badge-hidden  { background: #f8d7da; color: #721c24; }
+    .review-comment-cell { max-width: 300px; white-space: normal; font-size: 13px; color: #555; }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h2 class="fw-bold mb-0"><i class="fa-solid fa-star me-2" style="color:#f5a623;"></i>Customer Reviews</h2>
+            <p class="text-muted mb-0">Sabhi customer reviews yahaan dikhe. Aap inhe show/hide ya delete kar sakte hain.</p>
+        </div>
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-secondary btn-sm"><i class="fa fa-arrow-left me-1"></i>Dashboard</a>
+    </div>
+
+    @if (TempData["Message"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fa fa-check-circle me-2"></i>@TempData["Message"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!Model.Any())
+    {
+        <div class="card text-center py-5">
+            <div class="card-body">
+                <i class="fa-regular fa-comment fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Abhi koi review nahi hai</h5>
+                <p class="text-muted">Jab customers review denge, woh yahaan dikhe ga.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover reviews-admin-table mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Product</th>
+                                <th>Reviewer</th>
+                                <th>Rating</th>
+                                <th>Comment</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in Model)
+                            {
+                                <tr class="@(!r.IsVisible ? "table-secondary" : "")">
+                                    <td class="text-muted" style="font-size:12px;">@r.Id</td>
+                                    <td>
+                                        <a asp-controller="Products" asp-action="Details" asp-route-id="@r.ProductId" target="_blank" class="fw-semibold text-decoration-none">
+                                            @r.Product?.Name
+                                        </a>
+                                        <div class="text-muted" style="font-size:11px;">Product #@r.ProductId</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold">@r.ReviewerName</div>
+                                    </td>
+                                    <td>
+                                        <div class="star-row">
+                                            @for (int s = 1; s <= 5; s++)
+                                            {
+                                                <i class="fa-solid fa-star si @(s <= r.Rating ? "" : "e")"></i>
+                                            }
+                                        </div>
+                                        <div style="font-size:11px;color:#888;">@r.Rating / 5</div>
+                                    </td>
+                                    <td class="review-comment-cell">
+                                        @if (!string.IsNullOrWhiteSpace(r.Comment))
+                                        {
+                                            @r.Comment
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted fst-italic">No comment</span>
+                                        }
+                                    </td>
+                                    <td style="white-space:nowrap;font-size:13px;">
+                                        @r.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")<br />
+                                        <span class="text-muted" style="font-size:11px;">@r.CreatedAt.ToLocalTime().ToString("hh:mm tt")</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(r.IsVisible ? "badge-visible" : "badge-hidden") px-2 py-1" style="border-radius:20px;">
+                                            <i class="fa @(r.IsVisible ? "fa-eye" : "fa-eye-slash") me-1"></i>@(r.IsVisible ? "Visible" : "Hidden")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-2">
+                                            <form asp-action="ToggleReview" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@r.Id" />
+                                                <button type="submit" class="btn btn-sm @(r.IsVisible ? "btn-outline-warning" : "btn-outline-success")" title="@(r.IsVisible ? "Hide" : "Show")">
+                                                    <i class="fa @(r.IsVisible ? "fa-eye-slash" : "fa-eye")"></i>
+                                                </button>
+                                            </form>
+                                            <form asp-action="DeleteReview" method="post" class="d-inline" onsubmit="return confirm('Is review ko delete karein? Yeh wapis nahi aayega.')">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@r.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                    <i class="fa fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer text-muted" style="font-size:13px;">
+                Total: <strong>@Model.Count</strong> reviews &nbsp;|&nbsp;
+                Visible: <strong>@Model.Count(r => r.IsVisible)</strong> &nbsp;|&nbsp;
+                Hidden: <strong>@Model.Count(r => !r.IsVisible)</strong>
+            </div>
+        </div>
+    }
+</div>

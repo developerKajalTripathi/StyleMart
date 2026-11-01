@@ -1,0 +1,109 @@
+@model IEnumerable<Category>
+@{
+	ViewData["Title"] = "Manage categories";
+	var form = (Category)ViewBag.Form;
+}
+
+
+
+<div class="admin-shell">
+	@await Html.PartialAsync("_AdminSidebar", "Categories")
+
+	<section class="admin-main">
+		<div class="admin-top"><div><span class="eyebrow text-pink">CATALOGUE</span><h2>Categories</h2></div></div>
+		@if (TempData["Message"] != null)
+		{
+			<div class="alert alert-success">@TempData["Message"]</div>
+		}
+		@if (TempData["Error"] != null)
+		{
+			<div class="alert alert-danger">@TempData["Error"]</div>
+		}
+
+		<div class="admin-panel mb-4">
+			<h5 class="mb-3">@(form.Id == 0 ? "Add category" : "Edit category")</h5>
+
+			<form asp-action="SaveCategory" method="post" enctype="multipart/form-data" class="row g-3">
+				<input type="hidden" name="Id" value="@form.Id">
+
+				<div class="col-md-4">
+					<label class="form-label small text-muted">Category name</label>
+					<input name="Name" value="@form.Name" class="form-control" placeholder="Category name" maxlength="40" required>
+				</div>
+
+				<div class="col-md-8">
+					<label class="form-label small text-muted">Select image (JPG, PNG, WEBP – max 5 MB)</label>
+					<input type="file" name="imageFile" id="catFile" class="form-control" accept=".jpg,.jpeg,.png,.webp">
+				</div>
+
+				<!-- naya file na chuno to purani image bachi rahegi -->
+				<input type="hidden" name="ImageUrl" value="@form.ImageUrl">
+
+				<div class="col-12 d-flex align-items-center gap-3 flex-wrap">
+					<span class="category-circle" style="width:64px;height:64px">
+						<img id="catPreview" alt="" src="@form.ImageUrl" style="@(string.IsNullOrWhiteSpace(form.ImageUrl) ? "display:none" : "")">
+					</span>
+					<small class="text-muted">Ye round image Home page ki category strip mein dikhegi.</small>
+
+					<div class="ms-auto d-flex gap-2">
+						<button class="btn btn-pink">@(form.Id == 0 ? "Add" : "Update")</button>
+						@if (form.Id != 0)
+						{
+							<a asp-action="Categories" class="btn btn-outline-dark">Cancel</a>
+						}
+					</div>
+				</div>
+			</form>
+		</div>
+
+		<div class="admin-panel table-responsive">
+			<table class="table align-middle">
+				<thead><tr><th>Image</th><th>Name</th><th>Products</th><th>Actions</th></tr></thead>
+				<tbody>
+					@foreach (var c in Model)
+					{
+						<tr>
+							<td>
+								<span class="category-circle" style="width:46px;height:46px;font-size:1rem">
+									@if (!string.IsNullOrWhiteSpace(c.ImageUrl))
+									{
+										<img src="@c.ImageUrl" alt="@c.Name">
+									}
+									else
+									{
+
+										<text>@c.Name.Substring(0, 1).ToUpper()</text>
+									}
+								</span>
+							</td>
+							<td><b>@c.Name</b></td>
+							<td>@c.Products.Count</td>
+							<td>
+								<a asp-action="Categories" asp-route-editId="@c.Id" class="btn btn-sm btn-outline-dark">Edit</a>
+								<form asp-action="DeleteCategory" method="post" class="d-inline">
+									<input type="hidden" name="id" value="@c.Id">
+									<button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this category?')">Delete</button>
+								</form>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	</section>
+</div>
+
+@section Scripts {
+	<script>
+		// image select karte hi preview dikhao
+		(function () {
+			var f = document.getElementById("catFile"), img = document.getElementById("catPreview");
+			if (!f || !img) return;
+			f.addEventListener("change", function () {
+				if (!f.files || !f.files[0]) return;
+				img.src = URL.createObjectURL(f.files[0]);
+				img.style.display = "";
+			});
+		})();
+	</script>
+}

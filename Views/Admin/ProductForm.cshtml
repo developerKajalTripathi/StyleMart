@@ -1,0 +1,468 @@
+@model Product
+@{
+	ViewData["Title"] = Model.Id == 0 ? "Add product" : "Edit product";
+}
+
+
+
+
+<style>
+    .product-page {
+        background: linear-gradient(135deg, #fff7fa 0%, #fff 55%, #fff0f6 100%);
+        min-height: 100vh;
+        padding: 30px;
+    }
+
+    .page-heading {
+        color: #30232b;
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
+
+    .page-subtitle {
+        color: #887782;
+        margin-bottom: 25px;
+    }
+
+    .product-card {
+        background: white;
+        border: 1px solid #f2dce7;
+        border-radius: 18px;
+        padding: 28px;
+        box-shadow: 0 10px 30px rgba(130, 45, 85, 0.08);
+        transition: box-shadow .2s ease, transform .2s ease;
+    }
+
+    .product-card:hover {
+        box-shadow: 0 14px 34px rgba(130, 45, 85, 0.11);
+    }
+
+    .section-title {
+        font-size: 17px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        color: #35232d;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #493641;
+        margin-bottom: 8px;
+    }
+
+    .form-control, .form-select {
+        border: 1px solid #eadce4;
+        border-radius: 10px;
+        padding: 12px 14px;
+        min-height: 46px;
+        transition: border-color .2s ease, box-shadow .2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #e83e8c;
+        box-shadow: 0 0 0 3px rgba(232, 62, 140, .12);
+    }
+
+    .image-upload-box {
+        border: 2px dashed #e8a7c5;
+        background: #fff8fb;
+        border-radius: 15px;
+        padding: 25px 15px;
+        text-align: center;
+        cursor: pointer;
+    }
+
+    .upload-icon {
+        font-size: 38px;
+        color: #e83e8c;
+        margin-bottom: 10px;
+    }
+
+    .image-preview {
+        width: 100%;
+        height: 210px;
+        object-fit: contain;
+        border-radius: 12px;
+        background: white;
+        border: 1px solid #f1e3ea;
+        margin-bottom: 15px;
+    }
+
+    .btn-pink {
+        background: #e83e8c;
+        border: 1px solid #e83e8c;
+        color: white;
+        border-radius: 9px;
+        padding: 11px 22px;
+        font-weight: 600;
+    }
+
+    .btn-pink:hover {
+        background: #c92c74;
+        color: white;
+    }
+
+    .btn-cancel {
+        border: 1px solid #e2d5dd;
+        color: #51414a;
+        background: white;
+        border-radius: 9px;
+        padding: 11px 22px;
+        text-decoration: none;
+    }
+
+    .discount-preview {
+        background: #fff7fa;
+        border: 1px solid #f2dce7;
+        border-radius: 12px;
+        padding: 14px;
+        margin-top: 12px;
+    }
+
+    .final-price {
+        color: #e83e8c;
+        font-size: 25px;
+        font-weight: 700;
+    }
+
+    .old-price {
+        color: #887782;
+        text-decoration: line-through;
+    }
+
+    .offer-badge {
+        background: #e4f7e9;
+        color: #16803c;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .text-danger {
+        font-size: 13px;
+    }
+
+    @@media (max-width: 768px) {
+        .product-page {
+            padding: 15px;
+        }
+
+        .product-card {
+            padding: 18px;
+        }
+
+        .page-heading {
+            font-size: 1.55rem;
+        }
+    }
+</style>
+
+<div class="product-page">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div>
+            <h2 class="page-heading">
+                @(Model.Id == 0 ? "Add New Product" : "Edit Product")
+            </h2>
+            <p class="page-subtitle mb-0">
+                Add product details, upload an image, and set the selling price.
+            </p>
+        </div>
+
+        <a asp-action="Products" class="btn-cancel">
+            ← Back to Products
+        </a>
+    </div>
+
+    <form asp-controller="Admin"
+          asp-action="SaveProduct"
+          method="post"
+          enctype="multipart/form-data">
+
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="ImageUrl" type="hidden" />
+
+        
+
+        <div asp-validation-summary="ModelOnly"
+             class="text-danger mb-3"></div>
+
+
+
+        <div class="row g-4">
+            <!-- Product image -->
+            <div class="col-lg-4">
+                <div class="product-card h-100">
+                    <h5 class="section-title">Product Cover Image</h5>
+
+                    <img id="imagePreview"
+                         class="image-preview"
+                         src="@Model.ImageUrl"
+                         alt="Product preview"
+                         style="display:@(string.IsNullOrEmpty(Model.ImageUrl) ? "none" : "block");" />
+
+                    <label for="imageFile" class="image-upload-box d-block">
+                        <div class="upload-icon">↑</div>
+                        <h6 class="fw-bold">Select Cover Image</h6>
+                        <p class="text-muted small mb-2">Click to choose main product image</p>
+                        <span class="badge rounded-pill text-bg-light">JPG, PNG, WEBP</span>
+                    </label>
+
+                    <input type="file" name="imageFile" id="imageFile"
+                           class="form-control mt-3" accept=".jpg,.jpeg,.png,.webp" />
+                    <small class="text-muted d-block mt-2">Max 5 MB per image.</small>
+                    <span id="imageError" class="text-danger"></span>
+
+                    @* ===== Gallery Images Section ===== *@
+                    <hr class="my-3" />
+                    <h6 class="fw-bold" style="color:#35232d;">📸 Gallery Images</h6>
+
+                    @if (Model.Images != null && Model.Images.Any())
+                    {
+                        <div class="row g-2 mb-3" id="existingGallery">
+                            @foreach (var img in Model.Images.OrderBy(i => i.SortOrder))
+                            {
+                                <div class="col-4">
+                                    <div style="position:relative;">
+                                        <img src="@img.ImageUrl" alt="" style="width:100%;height:70px;object-fit:cover;border-radius:8px;border:1px solid #f0dde8;">
+                                        <form asp-controller="Admin" asp-action="DeleteProductImage" method="post"
+                                              style="position:absolute;top:2px;right:2px;"
+                                              onsubmit="return confirm('Delete this image?');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@img.Id" />
+                                            <input type="hidden" name="productId" value="@Model.Id" />
+                                            <button type="submit" style="background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;line-height:1;cursor:pointer;padding:0;">✕</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (Model.Id > 0)
+                    {
+                        <p class="text-muted" style="font-size:12px;">No gallery images yet.</p>
+                    }
+
+                    <label for="galleryFiles" class="image-upload-box d-block" style="padding:15px;">
+                        <div style="font-size:22px;">🖼️</div>
+                        <h6 class="fw-bold" style="font-size:13px;">Add Gallery Images</h6>
+                        <p class="text-muted" style="font-size:11px;margin:0;">Select multiple images (hold Ctrl)</p>
+                    </label>
+                    <input type="file" name="galleryFiles" id="galleryFiles"
+                           class="form-control mt-2" accept=".jpg,.jpeg,.png,.webp" multiple />
+                    <small class="text-muted d-block mt-1" style="font-size:11px;">Select multiple files. Max 5 MB each.</small>
+                    <div id="galleryPreviews" class="row g-2 mt-2"></div>
+                </div>
+            </div>
+
+            <!-- Product details -->
+            <div class="col-lg-8">
+                <div class="product-card">
+                    <h5 class="section-title">Product Information</h5>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Name" class="form-label">
+                                Product Name *
+                            </label>
+                            <input asp-for="Name"
+                                   class="form-control"
+                                   placeholder="Enter product name" />
+                            <span asp-validation-for="Name"
+                                  class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="CategoryId" class="form-label">
+                                Category *
+                            </label>
+                            <select asp-for="CategoryId" class="form-select"
+                                    asp-items="@((IEnumerable<SelectListItem>)ViewBag.CategoryList)">
+                                <option value="">Select category</option>
+                            </select>
+                            <span asp-validation-for="CategoryId"
+                                  class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Price" class="form-label">
+                                Original Price (₹) *
+                            </label>
+                            <input asp-for="Price"
+                                   id="Price"
+                                   type="number"
+                                   min="1"
+                                   step="0.01"
+                                   class="form-control"
+                                   placeholder="e.g. 400" />
+                            <span asp-validation-for="Price"
+                                  class="text-danger"></span>
+                        </div>
+
+                        <!-- Discount -->
+                        <div class="col-12">
+                            <label asp-for="DiscountPercentage"
+                                   class="form-label">
+                                Discount Percentage (%)
+                            </label>
+
+                            <input asp-for="DiscountPercentage"
+                                   id="DiscountPercentage"
+                                   type="number"
+                                   min="0"
+                                   max="100"
+                                   step="0.01"
+                                   class="form-control"
+                                   placeholder="e.g. 20" />
+
+                            <span asp-validation-for="DiscountPercentage"
+                                  class="text-danger"></span>
+
+                            <div class="discount-preview">
+                                <div class="small text-muted">
+                                    Customer Selling Price
+                                </div>
+
+                                <div class="d-flex align-items-center gap-2 flex-wrap mt-1">
+                                    <span class="final-price" id="finalPrice">
+                                        ₹0.00
+                                    </span>
+
+                                    <span class="old-price" id="oldPrice">
+                                        ₹0.00
+                                    </span>
+
+                                    <span class="offer-badge" id="offerBadge">
+                                        0% OFF
+                                    </span>
+                                </div>
+
+                                <small class="text-success" id="savingAmount">
+                                    You save ₹0.00
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Stock" class="form-label">
+                                Stock (only for products without colour/size variants) *
+                            </label>
+                            <input asp-for="Stock"
+                                   type="number"
+                                   min="0"
+                                   class="form-control"
+                                   placeholder="Total available quantity" />
+                            <span asp-validation-for="Stock"
+                                  class="text-danger"></span>
+                            <small class="text-muted">
+                                Enter the total quantity available for this product.
+                            </small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Product Status</label>
+                            <div class="border rounded-3 p-3">
+                                <input asp-for="IsActive"
+                                       class="form-check-input me-2" />
+                                <label asp-for="IsActive"
+                                       class="form-check-label">
+                                    Active product
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Description"
+                                   class="form-label">
+                                Product Description
+                            </label>
+                            <textarea asp-for="Description"
+                                      class="form-control"
+                                      rows="4"
+                                      placeholder="Write product description..."></textarea>
+                            <span asp-validation-for="Description"
+                                  class="text-danger"></span>
+                        </div>
+
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <a asp-action="Products" class="btn-cancel">
+                            Cancel
+                        </a>
+
+                        <button type="submit" class="btn-pink">
+                            ✓ @(Model.Id == 0 ? "Save Product" : "Update Product")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // Discount preview
+    const priceInput = document.getElementById("Price");
+    const discountInput = document.getElementById("DiscountPercentage");
+
+    function updateDiscount() {
+        const price = Math.max(0, parseFloat(priceInput.value) || 0);
+        const discount = Math.min(100, Math.max(0, parseFloat(discountInput.value) || 0));
+        const saving = price * discount / 100;
+        const finalPrice = price - saving;
+        document.getElementById("finalPrice").textContent = "₹" + finalPrice.toFixed(2);
+        document.getElementById("oldPrice").textContent = "₹" + price.toFixed(2);
+        document.getElementById("offerBadge").textContent = discount + "% OFF";
+        document.getElementById("savingAmount").textContent = "You save ₹" + saving.toFixed(2);
+    }
+
+    priceInput.addEventListener("input", updateDiscount);
+    discountInput.addEventListener("input", updateDiscount);
+    updateDiscount();
+
+    // Main image preview
+    const fileInput = document.getElementById("imageFile");
+    const preview = document.getElementById("imagePreview");
+    const imageError = document.getElementById("imageError");
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+
+    fileInput.addEventListener("change", function () {
+        imageError.textContent = "";
+        const file = this.files[0];
+        if (!file) return;
+        if (!allowedTypes.includes(file.type)) {
+            imageError.textContent = "Select a JPG, PNG or WEBP image.";
+            this.value = ""; return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            imageError.textContent = "Image must be less than 5 MB.";
+            this.value = ""; return;
+        }
+        preview.src = URL.createObjectURL(file);
+        preview.style.display = "block";
+    });
+
+    // Gallery images preview
+    const galleryInput = document.getElementById("galleryFiles");
+    const galleryPreviews = document.getElementById("galleryPreviews");
+    if (galleryInput && galleryPreviews) {
+        galleryInput.addEventListener("change", function () {
+            galleryPreviews.innerHTML = "";
+            Array.from(this.files).forEach(function (file) {
+                if (!allowedTypes.includes(file.type)) return;
+                var col = document.createElement("div");
+                col.className = "col-4";
+                var img = document.createElement("img");
+                img.src = URL.createObjectURL(file);
+                img.style.cssText = "width:100%;height:70px;object-fit:cover;border-radius:8px;border:1px solid #f0dde8;";
+                col.appendChild(img);
+                galleryPreviews.appendChild(col);
+            });
+        });
+    }
+});
+</script>

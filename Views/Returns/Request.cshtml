@@ -1,0 +1,193 @@
+﻿@model StyleMart.Models.OrderReturn
+
+@{
+    ViewData["Title"] = "Return / Exchange";
+    var reasons = ViewBag.Reasons as IEnumerable<string>
+                  ?? new List<string>();
+}
+
+<style>
+    .return-page {
+        background: #fff8fb;
+        min-height: 80vh;
+        padding: 45px 15px;
+    }
+
+    .return-card {
+        max-width: 650px;
+        margin: auto;
+        background: #ffffff;
+        border: 1px solid #f4d9e5;
+        border-radius: 18px;
+        box-shadow: 0 8px 28px rgba(190, 80, 125, 0.10);
+        overflow: hidden;
+    }
+
+    .return-header {
+        background: #fde8f0;
+        padding: 25px 30px;
+        border-bottom: 1px solid #f4d9e5;
+    }
+
+        .return-header h2 {
+            color: #9d315e;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .return-header p {
+            color: #795568;
+            margin-bottom: 0;
+        }
+
+    .return-body {
+        padding: 30px;
+    }
+
+        .return-body .form-label {
+            color: #49333d;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .return-body .form-control,
+        .return-body .form-select {
+            border: 1px solid #e9c6d5;
+            border-radius: 9px;
+            padding: 11px 13px;
+        }
+
+            .return-body .form-control:focus,
+            .return-body .form-select:focus {
+                border-color: #e65b96;
+                box-shadow: 0 0 0 0.2rem rgba(230, 91, 150, 0.14);
+            }
+
+    .btn-return {
+        background: #e94f91;
+        border: 1px solid #e94f91;
+        color: white;
+        border-radius: 9px;
+        padding: 10px 20px;
+        font-weight: 600;
+    }
+
+        .btn-return:hover {
+            background: #ce3979;
+            border-color: #ce3979;
+            color: white;
+        }
+
+    .btn-return-cancel {
+        border: 1px solid #e7b5ca;
+        color: #9d315e;
+        border-radius: 9px;
+        padding: 10px 20px;
+    }
+
+        .btn-return-cancel:hover {
+            background: #fff0f6;
+            color: #9d315e;
+        }
+
+    .order-label {
+        display: inline-block;
+        background: #ffffff;
+        border: 1px solid #f0c6d8;
+        color: #a03c68;
+        border-radius: 20px;
+        padding: 5px 12px;
+        font-size: 14px;
+    }
+</style>
+
+<div class="return-page">
+    <div class="return-card">
+
+        <div class="return-header">
+            <h2>Return / Exchange</h2>
+            <p>Let us help you with your order.</p>
+            <div class="mt-3">
+                <span class="order-label">
+                    Order ID: #@Model.OrderId
+                </span>
+            </div>
+        </div>
+
+        <div class="return-body">
+            <form asp-controller="Returns"
+                  asp-action="Request"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden" asp-for="OrderId" />
+
+                <div asp-validation-summary="ModelOnly"
+                     class="text-danger mb-3"></div>
+
+                <div class="mb-4">
+                    <label asp-for="RequestType" class="form-label">
+                        What would you like to do?
+                    </label>
+
+                    <select asp-for="RequestType" class="form-select">
+                        <option value="Return">Return Product</option>
+                        <option value="Exchange">Exchange Product</option>
+                    </select>
+
+                    <span asp-validation-for="RequestType"
+                          class="text-danger"></span>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="Reason" class="form-label">
+                        Why are you returning/exchanging?
+                    </label>
+
+                    <select asp-for="Reason" class="form-select">
+                        <option value="">-- Select Reason --</option>
+
+                        @foreach (var reason in reasons)
+                        {
+                            <option value="@reason">@reason</option>
+                        }
+                    </select>
+
+                    <span asp-validation-for="Reason"
+                          class="text-danger"></span>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="Description" class="form-label">
+                        Additional details (optional)
+                    </label>
+
+                    <textarea asp-for="Description"
+                              class="form-control"
+                              rows="4"
+                              placeholder="Please explain the issue..."></textarea>
+
+                    <span asp-validation-for="Description"
+                          class="text-danger"></span>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-return">
+                        Submit Request
+                    </button>
+
+                    <a asp-controller="Account"
+                       asp-action="MyOrders"
+                       class="btn btn-return-cancel">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

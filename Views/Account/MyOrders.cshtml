@@ -1,0 +1,198 @@
+@model List<Order>
+@{
+    ViewData["Title"] = "My Orders";
+}
+
+<style>
+    .myorders-wrap { max-width: 900px; margin: 36px auto; padding: 0 16px 60px; }
+
+    .order-flipcard {
+        background: white;
+        border: 1.5px solid #f2dce7;
+        border-radius: 18px;
+        overflow: hidden;
+        margin-bottom: 20px;
+        box-shadow: 0 6px 20px rgba(130,45,85,.07);
+        transition: box-shadow .2s, transform .2s;
+    }
+    .order-flipcard:hover { box-shadow: 0 10px 30px rgba(130,45,85,.13); transform: translateY(-2px); }
+
+    .order-header {
+        padding: 16px 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        background: #fff8fb;
+        border-bottom: 1px solid #f2dce7;
+    }
+
+    .order-no { font-weight: 800; color: #30232b; font-size: 15px; }
+    .order-date { font-size: 12px; color: #999; margin-top: 2px; }
+
+    .status-tag {
+        display: inline-flex; align-items: center; gap: 5px;
+        border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700;
+    }
+    .tag-processing { background:#fff3cd;color:#856404; }
+    .tag-confirmed  { background:#d1ecf1;color:#0c5460; }
+    .tag-shipped    { background:#d4edda;color:#155724; }
+    .tag-outfordelivery { background:#cce5ff;color:#004085; }
+    .tag-delivered  { background:#d4edda;color:#155724; }
+    .tag-cancelled  { background:#f8d7da;color:#721c24; }
+
+    .order-body { padding: 16px 22px; }
+
+    /* Mini tracking bar */
+    .mini-track { display: flex; align-items: center; margin-bottom: 16px; }
+    .mini-step { flex: 1; text-align: center; position: relative; }
+    .mini-step::before { content:''; position:absolute;top:9px;left:50%;width:100%;height:2px;background:#e9ecef;z-index:0; }
+    .mini-step:last-child::before { display:none; }
+    .mini-step.done::before { background:#e83e8c; }
+    .mini-dot { width:20px;height:20px;border-radius:50%;background:#e9ecef;border:2px solid #dee2e6;margin:0 auto;position:relative;z-index:1;font-size:10px;display:flex;align-items:center;justify-content:center; }
+    .mini-step.done .mini-dot { background:#e83e8c;border-color:#e83e8c;color:white; }
+    .mini-step.active .mini-dot { background:white;border-color:#e83e8c;color:#e83e8c;box-shadow:0 0 0 3px rgba(232,62,140,.2); }
+    .mini-label { font-size:9px;font-weight:600;color:#ccc;margin-top:4px; }
+    .mini-step.done .mini-label, .mini-step.active .mini-label { color:#e83e8c; }
+
+    .item-row { display:flex;align-items:center;gap:12px;margin-bottom:10px; }
+    .item-thumb-sm { width:44px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #f0dde8; }
+
+    .eta-chip { background:#fff0f8;border:1px solid #f2dce7;border-radius:8px;padding:4px 10px;font-size:11px;color:#e83e8c;font-weight:700;display:inline-block; }
+
+    .order-footer { padding:12px 22px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px; }
+    .order-total { font-size:18px;font-weight:800;color:#e83e8c; }
+    .order-total small { font-size:12px;color:#999;font-weight:400; }
+
+    .btn-view { border:2px solid #e83e8c;color:#e83e8c;background:white;border-radius:10px;padding:8px 18px;font-weight:700;font-size:13px;text-decoration:none;transition:background .2s,color .2s; }
+    .btn-view:hover { background:#e83e8c;color:white; }
+    .btn-return { border:2px solid #dc3545;color:#dc3545;background:white;border-radius:10px;padding:8px 18px;font-weight:700;font-size:13px;text-decoration:none;transition:background .2s,color .2s; }
+    .btn-return:hover { background:#dc3545;color:white; }
+
+    .empty-box { text-align:center;padding:60px 20px; }
+    .empty-box .empty-icon { font-size:60px;margin-bottom:16px; }
+
+    @@media(max-width:576px) { .order-header { flex-direction:column;align-items:flex-start; } }
+</style>
+
+<div class="myorders-wrap">
+    <span class="eyebrow text-pink">YOUR PURCHASES</span>
+    <h2 style="font-weight:800;color:#30232b;margin:4px 0 24px;">My Orders</h2>
+
+    @if (!Model.Any())
+    {
+        <div class="order-flipcard">
+            <div class="empty-box">
+                <div class="empty-icon">📦</div>
+                <h4 style="font-weight:700;color:#30232b;">No orders yet</h4>
+                <p class="text-muted">When you place an order, it will appear here.</p>
+                <a asp-controller="Products" asp-action="Index" class="btn-view mt-2 d-inline-block">Start Shopping</a>
+            </div>
+        </div>
+    }
+
+    @foreach (var o in Model)
+    {
+        var tagClass = o.Status switch {
+            "Confirmed"       => "tag-confirmed",
+            "Shipped"         => "tag-shipped",
+            "Out for Delivery"=> "tag-outfordelivery",
+            "Delivered"       => "tag-delivered",
+            "Cancelled"       => "tag-cancelled",
+            _                 => "tag-processing"
+        };
+        var statusIcon = o.Status switch {
+            "Processing" => "🛒", "Confirmed" => "✅", "Shipped" => "🚚",
+            "Out for Delivery" => "🏃", "Delivered" => "🏠", "Cancelled" => "❌", _ => "🛒"
+        };
+
+        var statusOrder = new[] { "Processing", "Confirmed", "Shipped", "Out for Delivery", "Delivered" };
+        var curIdx = Array.IndexOf(statusOrder, o.Status);
+        if (curIdx < 0) curIdx = 0;
+
+        var miniSteps = new[] {
+            ("🛒", "Placed"), ("✅", "Confirmed"), ("🚚", "Shipped"), ("🏃", "OFD"), ("🏠", "Delivered")
+        };
+
+        <div class="order-flipcard">
+            <!-- Header -->
+            <div class="order-header">
+                <div>
+                    <div class="order-no">Order #@o.OrderNumber</div>
+                    <div class="order-date">Placed on @o.CreatedAt.ToString("dd MMM yyyy, hh:mm tt")</div>
+                    @if (!string.IsNullOrEmpty(o.TrackingMessage))
+                    {
+                        <div style="font-size:11px;color:#666;margin-top:3px;">📍 @o.TrackingMessage</div>
+                    }
+                </div>
+                <div class="text-end">
+                    <span class="status-tag @tagClass">@statusIcon @o.Status</span>
+                    @if (o.ExpectedDeliveryDate.HasValue && o.Status != "Delivered" && o.Status != "Cancelled")
+                    {
+                        <div class="mt-1">
+                            <span class="eta-chip">📅 ETA: @o.ExpectedDeliveryDate.Value.ToString("dd MMM")</span>
+                        </div>
+                    }
+                    @if (o.DeliveredAt.HasValue)
+                    {
+                        <div style="font-size:11px;color:#16803c;margin-top:3px;">✅ Delivered @o.DeliveredAt.Value.ToString("dd MMM yyyy")</div>
+                    }
+                </div>
+            </div>
+
+            <div class="order-body">
+                <!-- Mini tracking bar -->
+                @if (o.Status != "Cancelled")
+                {
+                    <div class="mini-track">
+                        @for (int i = 0; i < miniSteps.Length; i++)
+                        {
+                            var (icon, lbl) = miniSteps[i];
+                            string cls = i < curIdx ? "done" : (i == curIdx ? "active" : "");
+                            <div class="mini-step @cls">
+                                <div class="mini-dot">@(i <= curIdx ? icon : "")</div>
+                                <div class="mini-label">@lbl</div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- Items -->
+                @foreach (var item in o.Items.Take(3))
+                {
+                    <div class="item-row">
+                        <img src="@item.ImageUrl" class="item-thumb-sm" alt=""
+                             onerror="this.onerror=null;this.src='https://placehold.co/44x52/f5f0ed/222?text=SM'">
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold" style="font-size:13px;">@item.ProductName</div>
+                            @if (!string.IsNullOrEmpty(item.VariantInfo))
+                            { <div class="text-muted" style="font-size:11px;">@item.VariantInfo</div> }
+                            <div class="text-muted" style="font-size:11px;">Qty: @item.Quantity</div>
+                        </div>
+                        <div class="fw-bold" style="font-size:13px;">₹@item.LineTotal.ToString("N0")</div>
+                    </div>
+                }
+                @if (o.Items.Count > 3)
+                {
+                    <div class="text-muted" style="font-size:12px;">+@(o.Items.Count - 3) more item(s)</div>
+                }
+            </div>
+
+            <!-- Footer -->
+            <div class="order-footer">
+                <div class="order-total">
+                    ₹@o.Total.ToString("N0")
+                    <small> · @(o.PaymentMethod == "COD" ? "COD" : "Online")</small>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a asp-action="OrderDetails" asp-route-id="@o.Id" class="btn-view">View Details</a>
+                    @if (o.Status == "Delivered")
+                    {
+                        <a asp-controller="Returns" asp-action="Request" asp-route-orderId="@o.Id" class="btn-return">Return / Exchange</a>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>

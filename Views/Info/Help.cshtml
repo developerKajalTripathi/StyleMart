@@ -1,17 +1,67 @@
-@{ ViewData["Title"] = "Help & FAQs"; }
+@{
+	ViewData["Title"] = "Help & FAQs";
+}
 <div class="container py-5 info-page">
-    <span class="eyebrow text-pink">SUPPORT</span>
-    <h1 class="info-title">Help &amp; FAQs</h1>
-    <div class="accordion mt-4" id="faq">
-        <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#f1">How do I place an order?</button></h2>
-            <div id="f1" class="accordion-collapse collapse show" data-bs-parent="#faq"><div class="accordion-body">Open a product, choose your colour and size, then tap <strong>Add to Cart</strong> or <strong>Buy Now</strong>. Log in, pick or add a delivery address, review your order and place it.</div></div></div>
-        <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#f2">What payment methods are available?</button></h2>
-            <div id="f2" class="accordion-collapse collapse" data-bs-parent="#faq"><div class="accordion-body">Cash on Delivery is available right now. You pay when the order is delivered.</div></div></div>
-        <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#f3">How do I save products I like?</button></h2>
-            <div id="f3" class="accordion-collapse collapse" data-bs-parent="#faq"><div class="accordion-body">Tap the heart on any product. Your liked items are saved in your <a asp-controller="Wishlist" asp-action="Index">Wishlist</a>. If you log in, items you liked as a guest are kept too.</div></div></div>
-        <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#f4">How do I track or cancel an order?</button></h2>
-            <div id="f4" class="accordion-collapse collapse" data-bs-parent="#faq"><div class="accordion-body">Go to <a asp-controller="Account" asp-action="MyOrders">My Orders</a> to see the status of every order. An order can be cancelled while it is still in <em>Processing</em>.</div></div></div>
-        <div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#f5">What about returns?</button></h2>
-            <div id="f5" class="accordion-collapse collapse" data-bs-parent="#faq"><div class="accordion-body">We want you to love what you ordered. If something isn't right, contact us at support@stylemart.com with your order number and we'll help.</div></div></div>
-    </div>
+	<span class="eyebrow text-pink">SUPPORT</span>
+	<h1 class="info-title">Help &amp; FAQs</h1>
+	<div class="accordion mt-4" id="faq">
+		<div class="accordion-item">
+			<h2 class="accordion-header">
+				<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#f1">How do I place an order?</button>
+			</h2>
+			<div id="f1" class="accordion-collapse collapse show" data-bs-parent="#faq">
+				<div class="accordion-body">
+					Open a product, choose your colour and size, then tap <strong>Add to Cart</strong> or <strong>Buy Now</strong>. Log in, pick or add a delivery address,
+					review your order and place it.
+				</div>
+			</div>
+		</div>
+		<div class="accordion-item">
+			<h2 class="accordion-header">
+				<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#f2">
+					What payment methods are available?
+				</button>
+			</h2>
+			<div id="f2" class="accordion-collapse collapse" data-bs-parent="#faq">
+				<div class="accordion-body">Cash on Delivery is available right now. You pay when the order is delivered.</div>
+			</div>
+		</div>
+		<div class="accordion-item">
+			<h2 class="accordion-header">
+				<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#f3">
+					How do I save products I like?
+				</button>
+			</h2>
+			<div id="f3" class="accordion-collapse collapse" data-bs-parent="#faq">
+				<div class="accordion-body">Tap the heart on any product. Your liked items are saved in your <a asp-controller="Wishlist" asp-action="Index">Wishlist</a>. If you log in, items you liked as a guest are kept too.</div>
+			</div>
+		</div>
+		<div class="accordion-item">
+			<h2 class="accordion-header">
+				<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#f4">
+					How do I track or cancel an order?
+
+				</button>
+			</h2>
+			<div id="f4" class="accordion-collapse collapse" data-bs-parent="#faq">
+				<div class="accordion-body">
+					Go to <a asp-controller="Account" asp-action="MyOrders">My Orders</a>
+					to see the status of every order. An order can be cancelled while it is still in <em>Processing</em>.
+				</div>
+			</div>
+		</div>
+		<div class="accordion-item">
+			<h2 class="accordion-header">
+				<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#f5">
+					What about returns?
+				</button>
+			</h2>
+			<div id="f5" class="accordion-collapse collapse" data-bs-parent="#faq">
+				<div class="accordion-body">
+					We want you to love what you ordered. If something isn't right, contact us at
+					support@stylemart.com with your order number and we'll help.
+				</div>
+			</div>
+		</div>
+	</div>
 </div>
